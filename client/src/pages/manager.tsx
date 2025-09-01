@@ -1,0 +1,383 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { format, parse } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { CalendarIcon, LogOut, RefreshCw, MessageCircle, User, Clock, Calendar } from "lucide-react";
+import { useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import type { Appointment } from "@shared/schema";
+
+export default function Manager() {
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [, setLocation] = useLocation();
+
+  // Fetch dashboard stats
+  const { data: stats } = useQuery({
+    queryKey: ["/api/dashboard/stats"],
+  });
+
+  // Fetch appointments for selected date
+  const { data: appointments, refetch: refetchAppointments } = useQuery({
+    queryKey: ["/api/appointments", selectedDate],
+  });
+
+  // Fetch all appointments
+  const { data: allAppointments } = useQuery({
+    queryKey: ["/api/appointments"],
+  });
+
+  const handleLogout = () => {
+    setLocation("/");
+  };
+
+  const formatPhoneForWhatsApp = (phone: string) => {
+    // Remove formatting and add country code
+    const cleaned = phone.replace(/\D/g, "");
+    return `55${cleaned}`;
+  };
+
+  const formatDateDisplay = (dateStr: string) => {
+    const date = parse(dateStr, "yyyy-MM-dd", new Date());
+    return format(date, "d 'de' MMMM, yyyy", { locale: ptBR });
+  };
+
+  const filterToday = () => {
+    setSelectedDate(format(new Date(), "yyyy-MM-dd"));
+  };
+
+  const filterTomorrow = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setSelectedDate(format(tomorrow, "yyyy-MM-dd"));
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50">
+      {/* Header */}
+      <header className="bg-white/90 backdrop-blur-md border-b border-pink-100 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-3 sm:py-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center shadow-lg">
+                <Calendar className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+                  Painel Gerencial
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-600">Beauty Studio Dashboard</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className="hidden md:flex items-center space-x-2 bg-pink-50 px-3 py-2 rounded-lg">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">Administrador</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                title="Sair"
+                className="hover:bg-pink-50 hover:text-pink-600 rounded-full"
+                data-testid="button-logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Dashboard Content */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+          <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 hover:shadow-lg transition-shadow duration-300">
+            <CardContent className="pt-3 sm:pt-4 lg:pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm font-medium text-blue-600 mb-1">Hoje</p>
+                  <p className="text-lg sm:text-xl lg:text-3xl font-bold text-blue-700">
+                    {stats?.todayBookings || 0}
+                  </p>
+                  <p className="text-xs text-blue-500 mt-1">agendamentos</p>
+                </div>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center">
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200 hover:shadow-lg transition-shadow duration-300">
+            <CardContent className="pt-3 sm:pt-4 lg:pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm font-medium text-emerald-600 mb-1">Esta Semana</p>
+                  <p className="text-lg sm:text-xl lg:text-3xl font-bold text-emerald-700">
+                    {stats?.weekBookings || 0}
+                  </p>
+                  <p className="text-xs text-emerald-500 mt-1">agendamentos</p>
+                </div>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-emerald-400 to-green-500 rounded-xl flex items-center justify-center">
+                  <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200 hover:shadow-lg transition-shadow duration-300">
+            <CardContent className="pt-3 sm:pt-4 lg:pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm font-medium text-purple-600 mb-1">Este Mês</p>
+                  <p className="text-lg sm:text-xl lg:text-3xl font-bold text-purple-700">
+                    {stats?.monthBookings || 0}
+                  </p>
+                  <p className="text-xs text-purple-500 mt-1">agendamentos</p>
+                </div>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-purple-400 to-violet-500 rounded-xl flex items-center justify-center">
+                  <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-orange-50 to-amber-50 border-orange-200 hover:shadow-lg transition-shadow duration-300">
+            <CardContent className="pt-3 sm:pt-4 lg:pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm font-medium text-orange-600 mb-1">Taxa Ocupação</p>
+                  <p className="text-lg sm:text-xl lg:text-3xl font-bold text-orange-700">
+                    {stats?.occupancyRate || 0}%
+                  </p>
+                  <p className="text-xs text-orange-500 mt-1">do dia</p>
+                </div>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl flex items-center justify-center">
+                  <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Date Filter */}
+        <Card className="mb-8 bg-white/70 backdrop-blur-sm border-pink-100 shadow-lg">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+                  Agendamentos
+                </h2>
+                <p className="text-gray-600 text-sm">Gerencie os horários do seu salão</p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button 
+                    onClick={filterToday}
+                    variant={selectedDate === format(new Date(), "yyyy-MM-dd") ? "default" : "outline"}
+                    size="sm"
+                    className={`text-xs sm:text-sm ${selectedDate === format(new Date(), "yyyy-MM-dd") 
+                      ? "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
+                      : "border-pink-200 text-pink-600 hover:bg-pink-50"
+                    }`}
+                    data-testid="button-filter-today"
+                  >
+                    Hoje
+                  </Button>
+                  <Button 
+                    onClick={filterTomorrow}
+                    variant="outline"
+                    size="sm"
+                    className="border-pink-200 text-pink-600 hover:bg-pink-50 text-xs sm:text-sm"
+                    data-testid="button-filter-tomorrow"
+                  >
+                    Amanhã
+                  </Button>
+                  <Input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-auto min-w-[140px] border-pink-200 focus:border-pink-400 focus:ring-pink-400 text-xs sm:text-sm"
+                    data-testid="input-select-date"
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => refetchAppointments()}
+                  title="Atualizar"
+                  className="hover:bg-pink-50 hover:text-pink-600 rounded-full h-8 w-8 sm:h-10 sm:w-10"
+                  data-testid="button-refresh"
+                >
+                  <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Appointments List */}
+        <Card>
+          <CardHeader className="bg-gray-50 border-b">
+            <div className="flex items-center justify-between">
+              <CardTitle>
+                Agendamentos - {formatDateDisplay(selectedDate)}
+              </CardTitle>
+              <span className="text-sm text-gray-600">
+                {appointments?.length || 0} agendamentos
+              </span>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Horário
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Cliente
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Contato
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {appointments?.map((appointment: Appointment) => (
+                    <tr key={appointment.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <Clock className="w-4 h-4 text-gray-400 mr-2" />
+                          <span className="text-sm font-medium text-gray-900">
+                            {appointment.time}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <User className="w-4 h-4 text-gray-400 mr-2" />
+                          <span className="text-sm font-medium text-gray-900">
+                            {appointment.clientName}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900">
+                          {appointment.clientPhone}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <Badge 
+                          variant={appointment.status === "confirmed" ? "default" : "secondary"}
+                        >
+                          {appointment.status === "confirmed" ? "Confirmado" : "Pendente"}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <Button
+                          asChild
+                          size="sm"
+                          className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-md hover:shadow-lg transition-all duration-200"
+                          data-testid={`whatsapp-${appointment.id}`}
+                        >
+                          <a
+                            href={`https://wa.me/${formatPhoneForWhatsApp(appointment.clientPhone)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <MessageCircle className="w-4 h-4 mr-1" />
+                            WhatsApp
+                          </a>
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-gray-200">
+              {appointments?.map((appointment: Appointment) => (
+                <div key={appointment.id} className="p-4 hover:bg-gray-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium text-gray-900">
+                        {appointment.time}
+                      </span>
+                    </div>
+                    <Badge 
+                      variant={appointment.status === "confirmed" ? "default" : "secondary"}
+                    >
+                      {appointment.status === "confirmed" ? "Confirmado" : "Pendente"}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <User className="w-4 h-4 text-gray-400 mr-2" />
+                      <span className="text-sm text-gray-900">
+                        {appointment.clientName}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <MessageCircle className="w-4 h-4 text-gray-400 mr-2" />
+                        <span className="text-sm text-gray-600">
+                          {appointment.clientPhone}
+                        </span>
+                      </div>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-md hover:shadow-lg transition-all duration-200"
+                        data-testid={`whatsapp-mobile-${appointment.id}`}
+                      >
+                        <a
+                          href={`https://wa.me/${formatPhoneForWhatsApp(appointment.clientPhone)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <MessageCircle className="w-4 h-4 mr-1" />
+                          WhatsApp
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Empty State */}
+            {(!appointments || appointments.length === 0) && (
+              <div className="p-8 text-center">
+                <CalendarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Nenhum agendamento encontrado
+                </h3>
+                <p className="text-gray-500">
+                  Não há agendamentos para esta data.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

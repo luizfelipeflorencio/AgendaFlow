@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(355, 100%, 99%);
+  --foreground: hsl(330, 20%, 15%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(330, 20%, 15%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(330, 20%, 15%);
+  --primary: hsl(340, 75%, 60%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(340, 75%, 90%);
+  --secondary-foreground: hsl(340, 75%, 20%);
+  --muted: hsl(340, 20%, 96%);
+  --muted-foreground: hsl(330, 20%, 45%);
+  --accent: hsl(340, 50%, 95%);
+  --accent-foreground: hsl(340, 75%, 30%);
+  --destructive: hsl(0, 84%, 60%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --border: hsl(340, 30%, 90%);
+  --input: hsl(340, 20%, 98%);
+  --ring: hsl(340, 75%, 60%);
+  --chart-1: hsl(340, 75%, 60%);
+  --chart-2: hsl(320, 65%, 65%);
+  --chart-3: hsl(300, 70%, 70%);
+  --chart-4: hsl(280, 75%, 75%);
+  --chart-5: hsl(260, 80%, 80%);
+  --sidebar: hsl(0, 0%, 100%);
+  --sidebar-foreground: hsl(330, 20%, 15%);
+  --sidebar-primary: hsl(340, 75%, 60%);
+  --sidebar-primary-foreground: hsl(0, 0%, 100%);
+  --sidebar-accent: hsl(340, 50%, 95%);
+  --sidebar-accent-foreground: hsl(340, 75%, 30%);
+  --sidebar-border: hsl(340, 30%, 90%);
+  --sidebar-ring: hsl(340, 75%, 60%);
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: Menlo, monospace;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: hsl(0, 0%, 0%);
+  --foreground: hsl(200, 6.6667%, 91.1765%);
+  --card: hsl(228, 9.8039%, 10%);
+  --card-foreground: hsl(0, 0%, 85.0980%);
+  --popover: hsl(0, 0%, 0%);
+  --popover-foreground: hsl(200, 6.6667%, 91.1765%);
+  --primary: hsl(214.3, 77.3%, 54.9%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(159.7826, 100%, 36.0784%);
+  --secondary-foreground: hsl(0, 0%, 100%);
+  --muted: hsl(0, 0%, 9.4118%);
+  --muted-foreground: hsl(210, 3.3898%, 46.2745%);
+  --accent: hsl(205.7143, 70%, 7.8431%);
+  --accent-foreground: hsl(214.3, 77.3%, 54.9%);
+  --destructive: hsl(356.3033, 90.5579%, 54.3137%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --border: hsl(210, 5.2632%, 14.9020%);
+  --input: hsl(207.6923, 27.6596%, 18.4314%);
+  --ring: hsl(214.3, 77.3%, 54.9%);
+  --chart-1: hsl(214.3, 77.3%, 54.9%);
+  --chart-2: hsl(159.7826, 100%, 36.0784%);
+  --chart-3: hsl(42.0290, 92.8251%, 56.2745%);
+  --chart-4: hsl(147.1429, 78.5047%, 41.9608%);
+  --chart-5: hsl(341.4894, 75.2000%, 50.9804%);
+  --sidebar: hsl(228, 9.8039%, 10%);
+  --sidebar-foreground: hsl(0, 0%, 85.0980%);
+  --sidebar-primary: hsl(214.3, 77.3%, 54.9%);
+  --sidebar-primary-foreground: hsl(0, 0%, 100%);
+  --sidebar-accent: hsl(205.7143, 70%, 7.8431%);
+  --sidebar-accent-foreground: hsl(214.3, 77.3%, 54.9%);
+  --sidebar-border: hsl(205.7143, 15.7895%, 26.0784%);
+  --sidebar-ring: hsl(214.3, 77.3%, 54.9%);
+  --font-sans: Inter, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: Menlo, monospace;
+  --radius: 0.75rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  @keyframes fadeIn {
+    from { 
+      opacity: 0; 
+      transform: translateY(10px); 
+    }
+    to { 
+      opacity: 1; 
+      transform: translateY(0); 
+    }
+  }
+}

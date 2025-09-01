@@ -1,0 +1,130 @@
+📑 PRD – Sistema de Agendamento Online
+1. Objetivo
+
+Criar um sistema de agendamento online simples e moderno, direcionado para salões de beleza, manicures, depilação e serviços similares.
+O sistema deve ser intuitivo, responsivo e rápido, permitindo que clientes agendem horários de forma autônoma e que o dono do estabelecimento gerencie os agendamentos facilmente.
+
+2. Personas
+👤 Usuário (Cliente)
+
+Quer agendar um horário de forma rápida.
+
+Não precisa criar conta, apenas informar nome e número de WhatsApp.
+
+Quer visualizar os horários disponíveis e escolher de forma simples.
+
+👤 Manager (Dono do Negócio)
+
+Deseja ver todos os agendamentos de um dia.
+
+Precisa dos dados do cliente (nome, número, data, hora).
+
+Precisa de um botão que abra diretamente o WhatsApp com o número do cliente.
+
+3. Funcionalidades
+3.1 Sistema Usuário (Cliente)
+
+Campo de entrada: Nome (texto).
+
+Campo de entrada: Número de WhatsApp (input numérico + máscara de telefone).
+
+Calendário para selecionar a data (somente dias disponíveis).
+
+Exibição dos horários disponíveis para o dia escolhido.
+
+Seleção de horário desejado.
+
+Botão Confirmar Agendamento → salva no banco e mostra mensagem de sucesso.
+
+3.2 Sistema Manager (Dono)
+
+Login básico (ex: usuário/senha, pode ser simples no início).
+
+Página "Agendamentos do Dia".
+
+Lista dos agendamentos em formato de tabela ou cards:
+
+Nome do cliente.
+
+Número (com botão WhatsApp → abre https://wa.me/<numero>).
+
+Data.
+
+Hora.
+
+Filtro para navegar entre datas (ex: hoje, amanhã, escolher data).
+
+4. Requisitos Não Funcionais
+
+UI/UX:
+
+Design moderno, minimalista e responsivo (funcionar bem em celular).
+
+Layout claro com ícones compreensíveis.
+
+Cores leves e tipografia amigável.
+
+Performance: carregamento rápido.
+
+Responsividade: compatível com mobile, tablet e desktop.
+
+5. Tecnologias (MERN Stack)
+
+MongoDB → armazenamento dos agendamentos.
+
+Express.js + Node.js → API backend.
+
+React.js (Next.js opcional) → frontend.
+
+TailwindCSS / ShadCN → UI moderna e responsiva.
+
+6. Fluxo do Usuário
+Cliente:
+
+Acessa o site.
+
+Digita Nome e WhatsApp.
+
+Seleciona Data no calendário.
+
+Escolhe um horário disponível.
+
+Clica em Confirmar Agendamento.
+
+Vê mensagem de confirmação.
+
+Dono:
+
+Faz login no painel.
+
+Visualiza lista de agendamentos do dia.
+
+Pode clicar no botão WhatsApp para falar direto com o cliente.
+
+Pode navegar entre datas para ver agendamentos futuros/passados.
+
+7. Wireframes (Sugestão Visual)
+
+Tela Cliente:
+
+[Nome] [Número]
+
+[Calendário]
+
+[Lista de horários disponíveis]
+
+[Botão Confirmar]
+
+Tela Manager:
+
+[Data Picker]
+
+[Lista de agendamentos: Nome | Número (botão WhatsApp) | Data | Hora]
+
+8. Futuras Expansões (Não obrigatório v1)
+
+Envio automático de lembrete via WhatsApp.
+
+Cancelamento/reagendamento pelo cliente.
+
+Painel com estatísticas (horários mais agendados, etc).
