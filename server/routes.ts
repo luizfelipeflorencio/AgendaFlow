@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { getStorage } from "./storage";
 import { insertAppointmentSchema, loginSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -9,6 +9,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create appointment
   app.post("/api/appointments", async (req, res) => {
     try {
+      const storage = await getStorage();
       const appointmentData = insertAppointmentSchema.parse(req.body);
       
       // Check if time slot is already booked
@@ -39,6 +40,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get appointments by date
   app.get("/api/appointments/:date", async (req, res) => {
     try {
+      const storage = await getStorage();
       const { date } = req.params;
       const appointments = await storage.getAppointmentsByDate(date);
       res.json(appointments);
@@ -50,6 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all appointments (for manager)
   app.get("/api/appointments", async (req, res) => {
     try {
+      const storage = await getStorage();
       const appointments = await storage.getAllAppointments();
       res.json(appointments);
     } catch (error) {
@@ -60,6 +63,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get available time slots for a date
   app.get("/api/available-slots/:date", async (req, res) => {
     try {
+      const storage = await getStorage();
       const { date } = req.params;
       
       // Get all active time slots
@@ -67,10 +71,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get booked appointments for this date
       const bookedAppointments = await storage.getAppointmentsByDate(date);
-      const bookedTimes = bookedAppointments.map(apt => apt.time);
+      const bookedTimes = bookedAppointments.map((apt: any) => apt.time);
       
       // Filter out booked slots
-      const availableSlots = allSlots.filter(slot => !bookedTimes.includes(slot.time));
+      const availableSlots = allSlots.filter((slot: any) => !bookedTimes.includes(slot.slotTime));
       
       res.json(availableSlots);
     } catch (error) {
@@ -81,6 +85,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Manager login
   app.post("/api/auth/login", async (req, res) => {
     try {
+      const storage = await getStorage();
       const loginData = loginSchema.parse(req.body);
       
       const manager = await storage.getManagerByUsername(loginData.username);
@@ -108,18 +113,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get dashboard stats
   app.get("/api/dashboard/stats", async (req, res) => {
     try {
+      const storage = await getStorage();
       const allAppointments = await storage.getAllAppointments();
       const today = new Date().toISOString().split('T')[0];
       
       // Calculate stats
-      const todayAppointments = allAppointments.filter(apt => apt.date === today);
+      const todayAppointments = allAppointments.filter((apt: any) => apt.date === today);
       
       const weekStart = new Date();
       weekStart.setDate(weekStart.getDate() - weekStart.getDay());
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 6);
       
-      const weekAppointments = allAppointments.filter(apt => {
+      const weekAppointments = allAppointments.filter((apt: any) => {
         const aptDate = new Date(apt.date);
         return aptDate >= weekStart && aptDate <= weekEnd;
       });
@@ -130,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       monthEnd.setMonth(monthStart.getMonth() + 1);
       monthEnd.setDate(0);
       
-      const monthAppointments = allAppointments.filter(apt => {
+      const monthAppointments = allAppointments.filter((apt: any) => {
         const aptDate = new Date(apt.date);
         return aptDate >= monthStart && aptDate <= monthEnd;
       });

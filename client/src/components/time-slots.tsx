@@ -10,7 +10,7 @@ interface TimeSlotsProps {
 }
 
 export default function TimeSlots({ selectedDate, selectedTime, onTimeSelect }: TimeSlotsProps) {
-  const { data: availableSlots, isLoading } = useQuery({
+  const { data: availableSlots = [], isLoading } = useQuery<TimeSlot[]>({
     queryKey: ["/api/available-slots", selectedDate],
     enabled: !!selectedDate,
   });
@@ -38,31 +38,31 @@ export default function TimeSlots({ selectedDate, selectedTime, onTimeSelect }: 
 
   // Group slots by period
   const morningSlots = availableSlots.filter((slot: TimeSlot) => {
-    const hour = parseInt(slot.time.split(':')[0]);
+    const hour = parseInt(slot.slotTime.split(':')[0]);
     return hour < 12;
   });
 
   const afternoonSlots = availableSlots.filter((slot: TimeSlot) => {
-    const hour = parseInt(slot.time.split(':')[0]);
+    const hour = parseInt(slot.slotTime.split(':')[0]);
     return hour >= 12;
   });
 
   const renderTimeSlot = (slot: TimeSlot) => (
     <Button
       key={slot.id}
-      variant={selectedTime === slot.time ? "default" : "outline"}
+      variant={selectedTime === slot.slotTime ? "default" : "outline"}
       className={`
         p-2 sm:p-3 lg:p-4 h-12 sm:h-14 lg:h-auto flex flex-col justify-center transition-all duration-300 relative overflow-hidden
-        ${selectedTime === slot.time 
+        ${selectedTime === slot.slotTime 
           ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white border-pink-500 shadow-lg scale-105' 
           : 'border-pink-200 hover:border-pink-400 hover:bg-pink-50 text-gray-700 hover:scale-105'
         }
       `}
-      onClick={() => onTimeSelect(slot.time)}
-      data-testid={`time-slot-${slot.time}`}
+      onClick={() => onTimeSelect(slot.slotTime)}
+      data-testid={`time-slot-${slot.slotTime}`}
     >
-      <div className="text-sm sm:text-base lg:text-lg font-semibold">{slot.time}</div>
-      {selectedTime === slot.time && (
+      <div className="text-sm sm:text-base lg:text-lg font-semibold">{slot.slotTime}</div>
+      {selectedTime === slot.slotTime && (
         <>
           <div className="text-xs opacity-90 mt-1">Selecionado</div>
           <div className="absolute top-1 right-1 w-3 h-3 bg-yellow-400 rounded-full"></div>

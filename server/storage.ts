@@ -1,5 +1,7 @@
 import { type Appointment, type InsertAppointment, type Manager, type InsertManager, type TimeSlot, type InsertTimeSlot } from "@shared/schema";
 import { randomUUID } from "crypto";
+import dotenv from "dotenv";
+dotenv.config();
 
 export interface IStorage {
   // Appointments
@@ -18,7 +20,8 @@ export interface IStorage {
   getAllTimeSlots(): Promise<TimeSlot[]>;
 }
 
-export class MemStorage implements IStorage {
+// MemStorage implementation for development fallback
+class MemStorage implements IStorage {
   private appointments: Map<string, Appointment>;
   private managers: Map<string, Manager>;
   private timeSlots: Map<string, TimeSlot>;
@@ -50,7 +53,7 @@ export class MemStorage implements IStorage {
     for (const time of defaultTimes) {
       const timeSlot: TimeSlot = {
         id: randomUUID(),
-        time,
+        slotTime: time,
         isActive: true,
       };
       this.timeSlots.set(timeSlot.id, timeSlot);
@@ -63,6 +66,7 @@ export class MemStorage implements IStorage {
     const appointment: Appointment = {
       ...insertAppointment,
       id,
+      status: insertAppointment.status || "confirmed",
       createdAt: new Date(),
     };
     this.appointments.set(id, appointment);
@@ -106,7 +110,11 @@ export class MemStorage implements IStorage {
   // Time Slots
   async createTimeSlot(insertTimeSlot: InsertTimeSlot): Promise<TimeSlot> {
     const id = randomUUID();
-    const timeSlot: TimeSlot = { ...insertTimeSlot, id };
+    const timeSlot: TimeSlot = { 
+      ...insertTimeSlot, 
+      id,
+      isActive: insertTimeSlot.isActive ?? true 
+    };
     this.timeSlots.set(id, timeSlot);
     return timeSlot;
   }
@@ -114,13 +122,48 @@ export class MemStorage implements IStorage {
   async getActiveTimeSlots(): Promise<TimeSlot[]> {
     return Array.from(this.timeSlots.values())
       .filter(slot => slot.isActive)
-      .sort((a, b) => a.time.localeCompare(b.time));
+      .sort((a, b) => a.slotTime.localeCompare(b.slotTime));
   }
 
   async getAllTimeSlots(): Promise<TimeSlot[]> {
     return Array.from(this.timeSlots.values())
-      .sort((a, b) => a.time.localeCompare(b.time));
+      .sort((a, b) => a.slotTime.localeCompare(b.slotTime));
   }
 }
 
-export const storage = new MemStorage();
+// Create storage instance based on environment
+let storageInstance: IStorage | null = null;
+
+async function createStorage(): Promise<IStorage> {
+  if (storageInstance) {
+    return storageInstance;
+  }
+  
+  console.log('Environment:', process.env.NODE_ENV);
+  console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
+  console.log('SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY);
+  console.log('SUPABASE_URL and SUPABASE_ANON_KEY:', process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  const useSupabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY;
+  
+  if (useSupabase) {
+    console.log('🔥 Using Supabase storage');
+    // Dynamic import to avoid issues if Supabase is not configured
+    try {
+      const { SupabaseStorage } = await import('./supabase-storage');
+      storageInstance = new SupabaseStorage();
+      return storageInstance;
+    } catch (error) {
+      console.warn('⚠️ Failed to load Supabase storage, falling back to memory storage:', error);
+      storageInstance = new MemStorage();
+      return storageInstance;
+    }
+  } else {
+    console.log('💾 Using in-memory storage (development mode)');
+    storageInstance = new MemStorage();
+    return storageInstance;
+  }
+}
+
+export async function getStorage(): Promise<IStorage> {
+  return await createStorage();
+}

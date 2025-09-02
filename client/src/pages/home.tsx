@@ -1,47 +1,7 @@
-import { useState } from "react";
-import { CalendarCheck, UserCog, Sparkles, Clock, Star } from "lucide-react";
-import { useLocation } from "wouter";
+import { CalendarCheck, Sparkles, Clock, Star } from "lucide-react";
 import BookingForm from "@/components/booking-form";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 
 export default function Home() {
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [, setLocation] = useLocation();
-  const { toast } = useToast();
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoggingIn(true);
-    
-    try {
-      const response = await apiRequest("POST", "/api/auth/login", loginForm);
-      const data = await response.json();
-      
-      if (data.success) {
-        toast({
-          title: "Login realizado com sucesso!",
-          description: `Bem-vindo, ${data.manager.username}`,
-        });
-        setShowLoginModal(false);
-        setLocation("/manager");
-      }
-    } catch (error) {
-      toast({
-        title: "Erro no login",
-        description: "Credenciais inválidas. Tente: admin/admin",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50">
@@ -60,15 +20,6 @@ export default function Home() {
                 <p className="text-xs sm:text-sm text-gray-600">Agendamento Online</p>
               </div>
             </div>
-            <Button
-              onClick={() => setShowLoginModal(true)}
-              variant="ghost"
-              size="sm"
-              className="text-gray-600 hover:text-pink-600 text-xs sm:text-sm"
-            >
-              <UserCog className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Acesso </span>Gerente
-            </Button>
           </div>
         </div>
       </header>
@@ -138,79 +89,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Login Modal */}
-      <Dialog open={showLoginModal} onOpenChange={setShowLoginModal}>
-        <DialogContent className="w-full max-w-md mx-4">
-          <DialogHeader>
-            <div className="text-center mb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <UserCog className="w-8 h-8 text-white" />
-              </div>
-              <DialogTitle className="text-2xl font-bold text-gray-900">
-                Acesso do Gerente
-              </DialogTitle>
-              <p className="text-gray-600 mt-2">
-                Digite suas credenciais para continuar
-              </p>
-            </div>
-          </DialogHeader>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <Label htmlFor="username" className="text-gray-700">Usuário</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="Digite seu usuário"
-                value={loginForm.username}
-                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                className="mt-1"
-                required
-                data-testid="input-username"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="password" className="text-gray-700">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Digite sua senha"
-                value={loginForm.password}
-                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                className="mt-1"
-                required
-                data-testid="input-password"
-              />
-            </div>
-
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
-              disabled={isLoggingIn}
-              data-testid="button-login"
-            >
-              {isLoggingIn ? "Entrando..." : "Entrar"}
-            </Button>
-            
-            <Button 
-              type="button"
-              variant="ghost"
-              className="w-full text-gray-600 hover:text-gray-800"
-              onClick={() => setShowLoginModal(false)}
-              data-testid="button-cancel"
-            >
-              Cancelar
-            </Button>
-          </form>
-          
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-center text-xs text-gray-500">
-              Para testar: usuário <strong className="text-pink-600">admin</strong>, senha <strong className="text-pink-600">admin</strong>
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

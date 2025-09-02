@@ -2,34 +2,78 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, LogOut, RefreshCw, MessageCircle, User, Clock, Calendar } from "lucide-react";
+import { CalendarIcon, LogOut, RefreshCw, MessageCircle, User, Clock, Calendar, UserCog } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { Appointment } from "@shared/schema";
 
 export default function Manager() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  
+  // Authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(true);
+  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Fetch dashboard stats
-  const { data: stats } = useQuery({
+  const { data: stats = {} } = useQuery<any>({
     queryKey: ["/api/dashboard/stats"],
+    enabled: isAuthenticated, // Only fetch when authenticated
   });
 
   // Fetch appointments for selected date
-  const { data: appointments, refetch: refetchAppointments } = useQuery({
+  const { data: appointments = [], refetch: refetchAppointments } = useQuery<Appointment[]>({
     queryKey: ["/api/appointments", selectedDate],
+    enabled: isAuthenticated, // Only fetch when authenticated
   });
 
   // Fetch all appointments
-  const { data: allAppointments } = useQuery({
+  const { data: allAppointments = [] } = useQuery<Appointment[]>({
     queryKey: ["/api/appointments"],
+    enabled: isAuthenticated, // Only fetch when authenticated
   });
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    
+    try {
+      const response = await apiRequest("POST", "/api/auth/login", loginForm);
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Login realizado com sucesso!",
+          description: `Bem-vindo, ${data.manager.username}`,
+        });
+        setIsAuthenticated(true);
+        setShowLoginModal(false);
+      }
+    } catch (error) {
+      toast({
+        title: "Erro no login",
+        description: "Credenciais inválidas. Tente: admin/admin",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   const handleLogout = () => {
+    setIsAuthenticated(false);
+    setShowLoginModal(true);
+    setLoginForm({ username: "", password: "" });
     setLocation("/");
   };
 
@@ -56,40 +100,42 @@ export default function Manager() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50">
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-pink-100 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-3 sm:py-4">
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center shadow-lg">
-                <Calendar className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-                  Painel Gerencial
-                </h1>
-                <p className="text-xs sm:text-sm text-gray-600">Beauty Studio Dashboard</p>
+      {isAuthenticated ? (
+        <>
+          {/* Header */}
+          <header className="bg-white/90 backdrop-blur-md border-b border-pink-100 sticky top-0 z-50">
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between py-3 sm:py-4">
+                <div className="flex items-center space-x-2 sm:space-x-4">
+                  <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <Calendar className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+                      Painel Gerencial
+                    </h1>
+                    <p className="text-xs sm:text-sm text-gray-600">Beauty Studio Dashboard</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2 sm:space-x-4">
+                  <div className="hidden md:flex items-center space-x-2 bg-pink-50 px-3 py-2 rounded-lg">
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span className="text-sm font-medium text-gray-700">Administrador</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleLogout}
+                    title="Sair"
+                    className="hover:bg-pink-50 hover:text-pink-600 rounded-full"
+                    data-testid="button-logout"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              <div className="hidden md:flex items-center space-x-2 bg-pink-50 px-3 py-2 rounded-lg">
-                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-700">Administrador</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleLogout}
-                title="Sair"
-                className="hover:bg-pink-50 hover:text-pink-600 rounded-full"
-                data-testid="button-logout"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+          </header>
 
       {/* Dashboard Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
@@ -378,6 +424,93 @@ export default function Manager() {
           </CardContent>
         </Card>
       </div>
+        </>
+      ) : (
+        // Show a minimal loading/authentication screen when not authenticated
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <UserCog className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Acesso Restrito</h2>
+            <p className="text-gray-600">Autenticação necessária para acessar esta área</p>
+          </div>
+        </div>
+      )}
+
+      {/* Login Modal */}
+      <Dialog open={showLoginModal} onOpenChange={() => {}} modal={true}>
+        <DialogContent className="w-full max-w-md mx-4" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <div className="text-center mb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <UserCog className="w-8 h-8 text-white" />
+              </div>
+              <DialogTitle className="text-2xl font-bold text-gray-900">
+                Acesso do Gerente
+              </DialogTitle>
+              <p className="text-gray-600 mt-2">
+                Digite suas credenciais para continuar
+              </p>
+            </div>
+          </DialogHeader>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <Label htmlFor="username" className="text-gray-700">Usuário</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="Digite seu usuário"
+                value={loginForm.username}
+                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                className="mt-1"
+                required
+                data-testid="input-username"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="password" className="text-gray-700">Senha</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Digite sua senha"
+                value={loginForm.password}
+                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                className="mt-1"
+                required
+                data-testid="input-password"
+              />
+            </div>
+
+            <Button 
+              type="submit" 
+              className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
+              disabled={isLoggingIn}
+              data-testid="button-login"
+            >
+              {isLoggingIn ? "Entrando..." : "Entrar"}
+            </Button>
+            
+            <Button 
+              type="button"
+              variant="ghost"
+              className="w-full text-gray-600 hover:text-gray-800"
+              onClick={() => setLocation("/")}
+              data-testid="button-cancel"
+            >
+              Voltar para Home
+            </Button>
+          </form>
+          
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <p className="text-center text-xs text-gray-500">
+              Para testar: usuário <strong className="text-pink-600">admin</strong>, senha <strong className="text-pink-600">admin</strong>
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

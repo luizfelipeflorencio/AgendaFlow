@@ -21,7 +21,7 @@ export const managers = pgTable("managers", {
 
 export const timeSlots = pgTable("time_slots", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  time: text("time").notNull(), // Format: HH:MM
+  slotTime: text("slot_time").notNull(), // Format: HH:MM
   isActive: boolean("is_active").notNull().default(true),
 });
 
