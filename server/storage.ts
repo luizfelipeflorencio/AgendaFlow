@@ -9,6 +9,8 @@ export interface IStorage {
   getAppointmentsByDate(date: string): Promise<Appointment[]>;
   getAppointmentByDateTime(date: string, time: string): Promise<Appointment | undefined>;
   getAllAppointments(): Promise<Appointment[]>;
+  updateAppointment(id: string, updates: Partial<InsertAppointment>): Promise<Appointment | undefined>;
+  cancelAppointment(id: string): Promise<boolean>;
   
   // Managers
   createManager(manager: InsertManager): Promise<Manager>;
@@ -91,6 +93,30 @@ class MemStorage implements IStorage {
         if (dateCompare !== 0) return dateCompare;
         return a.time.localeCompare(b.time);
       });
+  }
+
+  async updateAppointment(id: string, updates: Partial<InsertAppointment>): Promise<Appointment | undefined> {
+    const existing = this.appointments.get(id);
+    if (!existing) return undefined;
+    
+    const updated: Appointment = {
+      ...existing,
+      ...updates,
+    };
+    this.appointments.set(id, updated);
+    return updated;
+  }
+
+  async cancelAppointment(id: string): Promise<boolean> {
+    const existing = this.appointments.get(id);
+    if (!existing) return false;
+    
+    const cancelled: Appointment = {
+      ...existing,
+      status: "cancelled",
+    };
+    this.appointments.set(id, cancelled);
+    return true;
   }
 
   // Managers

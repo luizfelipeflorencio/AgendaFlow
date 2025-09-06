@@ -60,6 +60,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update appointment
+  app.put("/api/appointments/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const { id } = req.params;
+      const updates = req.body;
+      
+      // Validate updates if needed
+      if (updates.date && updates.time) {
+        // Check if new time slot is available (if changing date/time)
+        const existingAppointment = await storage.getAppointmentByDateTime(
+          updates.date,
+          updates.time
+        );
+        
+        if (existingAppointment && existingAppointment.id !== id) {
+          return res.status(409).json({ 
+            message: "Este horário já está ocupado. Por favor, escolha outro horário." 
+          });
+        }
+      }
+      
+      const updatedAppointment = await storage.updateAppointment(id, updates);
+      
+      if (!updatedAppointment) {
+        return res.status(404).json({ message: "Agendamento não encontrado" });
+      }
+      
+      res.json(updatedAppointment);
+    } catch (error) {
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // Cancel appointment
+  app.delete("/api/appointments/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const { id } = req.params;
+      
+      const success = await storage.cancelAppointment(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Agendamento não encontrado" });
+      }
+      
+      res.json({ message: "Agendamento cancelado com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
   // Get available time slots for a date
   app.get("/api/available-slots/:date", async (req, res) => {
     try {

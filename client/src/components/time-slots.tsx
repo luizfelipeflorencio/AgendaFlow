@@ -15,6 +15,36 @@ export default function TimeSlots({ selectedDate, selectedTime, onTimeSelect }: 
     enabled: !!selectedDate,
   });
 
+  const isToday = (dateStr: string) => {
+    const today = new Date();
+    const selectedDateObj = new Date(dateStr + 'T00:00:00');
+    return today.toDateString() === selectedDateObj.toDateString();
+  };
+
+  const isTimeSlotPassed = (slotTime: string) => {
+    if (!isToday(selectedDate)) {
+      return false; // If it's not today, no time slot has passed
+    }
+    
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    const [slotHour, slotMinute] = slotTime.split(':').map(num => parseInt(num));
+    
+    // If slot hour is less than current hour, it has passed
+    if (slotHour < currentHour) {
+      return true;
+    }
+    
+    // If slot hour is the same as current hour, check minutes
+    if (slotHour === currentHour && slotMinute <= currentMinute) {
+      return true;
+    }
+    
+    return false;
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -36,40 +66,56 @@ export default function TimeSlots({ selectedDate, selectedTime, onTimeSelect }: 
     );
   }
 
-  // Group slots by period
-  const morningSlots = availableSlots.filter((slot: TimeSlot) => {
+  // Group slots by period and filter out passed slots for today
+  const filterAvailableSlots = (slots: TimeSlot[]) => {
+    return slots.filter(slot => !isTimeSlotPassed(slot.slotTime));
+  };
+
+  const filteredSlots = filterAvailableSlots(availableSlots);
+
+  const morningSlots = filteredSlots.filter((slot: TimeSlot) => {
     const hour = parseInt(slot.slotTime.split(':')[0]);
     return hour < 12;
   });
 
-  const afternoonSlots = availableSlots.filter((slot: TimeSlot) => {
+  const afternoonSlots = filteredSlots.filter((slot: TimeSlot) => {
     const hour = parseInt(slot.slotTime.split(':')[0]);
     return hour >= 12;
   });
 
-  const renderTimeSlot = (slot: TimeSlot) => (
-    <Button
-      key={slot.id}
-      variant={selectedTime === slot.slotTime ? "default" : "outline"}
-      className={`
-        p-2 sm:p-3 lg:p-4 h-12 sm:h-14 lg:h-auto flex flex-col justify-center transition-all duration-300 relative overflow-hidden
-        ${selectedTime === slot.slotTime 
-          ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white border-pink-500 shadow-lg scale-105' 
-          : 'border-pink-200 hover:border-pink-400 hover:bg-pink-50 text-gray-700 hover:scale-105'
-        }
-      `}
-      onClick={() => onTimeSelect(slot.slotTime)}
-      data-testid={`time-slot-${slot.slotTime}`}
-    >
-      <div className="text-sm sm:text-base lg:text-lg font-semibold">{slot.slotTime}</div>
-      {selectedTime === slot.slotTime && (
-        <>
-          <div className="text-xs opacity-90 mt-1">Selecionado</div>
-          <div className="absolute top-1 right-1 w-3 h-3 bg-yellow-400 rounded-full"></div>
-        </>
-      )}
-    </Button>
-  );
+  const renderTimeSlot = (slot: TimeSlot) => {
+    const isPassed = isTimeSlotPassed(slot.slotTime);
+    
+    return (
+      <Button
+        key={slot.id}
+        variant={selectedTime === slot.slotTime ? "default" : "outline"}
+        className={`
+          p-2 sm:p-3 lg:p-4 h-12 sm:h-14 lg:h-auto flex flex-col justify-center transition-all duration-300 relative overflow-hidden
+          ${selectedTime === slot.slotTime 
+            ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white border-pink-500 shadow-lg scale-105' 
+            : isPassed
+              ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'border-pink-200 hover:border-pink-400 hover:bg-pink-50 text-gray-700 hover:scale-105'
+          }
+        `}
+        onClick={() => !isPassed && onTimeSelect(slot.slotTime)}
+        disabled={isPassed}
+        data-testid={`time-slot-${slot.slotTime}`}
+      >
+        <div className="text-sm sm:text-base lg:text-lg font-semibold">{slot.slotTime}</div>
+        {isPassed && (
+          <div className="text-xs opacity-70 mt-1">Indisponível</div>
+        )}
+        {selectedTime === slot.slotTime && !isPassed && (
+          <>
+            <div className="text-xs opacity-90 mt-1">Selecionado</div>
+            <div className="absolute top-1 right-1 w-3 h-3 bg-yellow-400 rounded-full"></div>
+          </>
+        )}
+      </Button>
+    );
+  };
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -106,8 +152,15 @@ export default function TimeSlots({ selectedDate, selectedTime, onTimeSelect }: 
           <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-lg sm:text-2xl">😞</span>
           </div>
-          <h4 className="text-base sm:text-lg font-medium text-gray-700 mb-2">Nenhum horário disponível</h4>
-          <p className="text-gray-500 text-sm">Tente selecionar outra data</p>
+          <h4 className="text-base sm:text-lg font-medium text-gray-700 mb-2">
+            {isToday(selectedDate) ? 'Nenhum horário disponível hoje' : 'Nenhum horário disponível'}
+          </h4>
+          <p className="text-gray-500 text-sm">
+            {isToday(selectedDate) 
+              ? 'Os horários de hoje já passaram. Tente selecionar outra data.' 
+              : 'Tente selecionar outra data'
+            }
+          </p>
         </div>
       )}
     </div>

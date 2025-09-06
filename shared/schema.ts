@@ -9,7 +9,7 @@ export const appointments = pgTable("appointments", {
   clientPhone: text("client_phone").notNull(),
   date: text("date").notNull(), // Format: YYYY-MM-DD
   time: text("time").notNull(), // Format: HH:MM
-  status: text("status").notNull().default("confirmed"), // "confirmed" | "pending" | "cancelled"
+  status: text("status").notNull().default("confirmed"), // "confirmed" | "pending" | "cancelled" | "rescheduled"
   createdAt: timestamp("created_at").defaultNow(),
 });
 

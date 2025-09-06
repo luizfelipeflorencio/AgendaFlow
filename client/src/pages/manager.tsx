@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, LogOut, RefreshCw, MessageCircle, User, Clock, Calendar, UserCog } from "lucide-react";
+import { CalendarIcon, LogOut, RefreshCw, MessageCircle, User, Clock, Calendar, UserCog, X, Edit, MoreVertical } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Appointment } from "@shared/schema";
@@ -18,12 +24,26 @@ export default function Manager() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(true);
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Reschedule modal state
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [rescheduleForm, setRescheduleForm] = useState({ date: "", time: "", status: "rescheduled" });
+  
+  // Cancel confirmation modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [appointmentToCancel, setAppointmentToCancel] = useState<Appointment | null>(null);
+  
+  // Dropdown state management to fix clicking issues
+  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
+  const [dropdownKeys, setDropdownKeys] = useState<Record<string, number>>({});
 
   // Fetch dashboard stats
   const { data: stats = {} } = useQuery<any>({
@@ -41,6 +61,55 @@ export default function Manager() {
   const { data: allAppointments = [] } = useQuery<Appointment[]>({
     queryKey: ["/api/appointments"],
     enabled: isAuthenticated, // Only fetch when authenticated
+  });
+
+  // Cancel appointment mutation
+  const cancelAppointmentMutation = useMutation({
+    mutationFn: async (appointmentId: string) => {
+      const response = await apiRequest("DELETE", `/api/appointments/${appointmentId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Agendamento cancelado",
+        description: "O agendamento foi cancelado com sucesso.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+    },
+    onError: () => {
+      toast({
+        title: "Erro ao cancelar",
+        description: "Não foi possível cancelar o agendamento.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reschedule appointment mutation
+  const rescheduleAppointmentMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: { date: string; time: string; status?: string } }) => {
+      const response = await apiRequest("PUT", `/api/appointments/${id}`, updates);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Agendamento remarcado",
+        description: "O agendamento foi remarcado com sucesso.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      setShowRescheduleModal(false);
+      setSelectedAppointment(null);
+      setRescheduleForm({ date: "", time: "", status: "rescheduled" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao remarcar",
+        description: error.message || "Não foi possível remarcar o agendamento.",
+        variant: "destructive",
+      });
+    },
   });
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -74,7 +143,7 @@ export default function Manager() {
     setIsAuthenticated(false);
     setShowLoginModal(true);
     setLoginForm({ username: "", password: "" });
-    setLocation("/");
+    setLocation("/manager");
   };
 
   const formatPhoneForWhatsApp = (phone: string) => {
@@ -96,6 +165,122 @@ export default function Manager() {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     setSelectedDate(format(tomorrow, "yyyy-MM-dd"));
+  };
+
+  const handleCancelAppointment = (appointment: Appointment) => {
+    // Force close dropdown and reset state
+    setOpenDropdowns(prev => ({ ...prev, [appointment.id]: false, [`mobile-${appointment.id}`]: false }));
+    
+    // Force re-render by updating dropdown key
+    setDropdownKeys(prev => ({ 
+      ...prev, 
+      [appointment.id]: (prev[appointment.id] || 0) + 1,
+      [`mobile-${appointment.id}`]: (prev[`mobile-${appointment.id}`] || 0) + 1
+    }));
+    
+    // Add small delay to ensure dropdown closes properly before showing confirmation modal
+    setTimeout(() => {
+      setAppointmentToCancel(appointment);
+      setShowCancelModal(true);
+    }, 100);
+  };
+
+  const confirmCancelAppointment = () => {
+    if (appointmentToCancel) {
+      // Instead of mutation, we'll update the status to cancelled which will hide it
+      cancelAppointmentMutation.mutate(appointmentToCancel.id);
+      setShowCancelModal(false);
+      setAppointmentToCancel(null);
+    }
+  };
+
+  const handleRescheduleAppointment = (appointment: Appointment) => {
+    // Force close dropdown and reset state
+    setOpenDropdowns(prev => ({ ...prev, [appointment.id]: false, [`mobile-${appointment.id}`]: false }));
+    
+    // Force re-render by updating dropdown key
+    setDropdownKeys(prev => ({ 
+      ...prev, 
+      [appointment.id]: (prev[appointment.id] || 0) + 1,
+      [`mobile-${appointment.id}`]: (prev[`mobile-${appointment.id}`] || 0) + 1
+    }));
+    
+    // Add small delay to ensure dropdown closes properly before opening modal
+    setTimeout(() => {
+      setSelectedAppointment(appointment);
+      setRescheduleForm({ date: appointment.date, time: appointment.time, status: "rescheduled" });
+      setShowRescheduleModal(true);
+    }, 100);
+  };
+
+  // Helper function to determine appointment status
+  const getAppointmentStatus = (appointment: Appointment) => {
+    // If cancelled by owner, don't show in table (filtered out)
+    if (appointment.status === 'cancelled') {
+      return null; // This will be filtered out
+    }
+    
+    // If rescheduled
+    if (appointment.status === 'rescheduled') {
+      return 'rescheduled';
+    }
+    
+    // Check if appointment is overdue (past date/time)
+    const appointmentDate = new Date(appointment.date);
+    const [hours, minutes] = appointment.time.split(':').map(Number);
+    appointmentDate.setHours(hours, minutes, 0, 0);
+    
+    const now = new Date();
+    
+    if (appointmentDate < now) {
+      return 'overdue'; // Past date/time - show as Pendente/Atendido
+    }
+    
+    // Default confirmed status
+    return 'confirmed';
+  };
+
+  // Helper function to get status display text and variant
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'rescheduled':
+        return { text: 'Remarcado', variant: 'secondary' as const, className: 'bg-blue-100 text-blue-800' };
+      case 'overdue':
+        return { text: 'Pendente/Atendido', variant: 'secondary' as const, className: 'bg-yellow-100 text-yellow-800' };
+      case 'confirmed':
+      default:
+        return { text: 'Confirmado', variant: 'default' as const, className: 'bg-green-100 text-green-800' };
+    }
+  };
+
+  // Filter appointments to hide cancelled ones
+  const filteredAppointments = appointments?.filter(appointment => 
+    appointment.status !== 'cancelled'
+  ) || [];
+  const handleDropdownOpenChange = (appointmentId: string, isOpen: boolean) => {
+    setOpenDropdowns(prev => ({ ...prev, [appointmentId]: isOpen }));
+    
+    // If opening, ensure we have a fresh key for this dropdown
+    if (isOpen) {
+      setDropdownKeys(prev => ({ 
+        ...prev, 
+        [appointmentId]: (prev[appointmentId] || 0) + 1
+      }));
+    }
+  };
+
+  const handleRescheduleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAppointment) return;
+    
+    rescheduleAppointmentMutation.mutate({
+      id: selectedAppointment.id,
+      updates: {
+        date: rescheduleForm.date,
+        time: rescheduleForm.time,
+        status: 'rescheduled'
+      },
+    });
   };
 
   return (
@@ -237,9 +422,12 @@ export default function Manager() {
                   </Button>
                   <Button 
                     onClick={filterTomorrow}
-                    variant="outline"
+                    variant={selectedDate === format(new Date(new Date().setDate(new Date().getDate() + 1)), "yyyy-MM-dd") ? "default" : "outline"}
                     size="sm"
-                    className="border-pink-200 text-pink-600 hover:bg-pink-50 text-xs sm:text-sm"
+                    className={`text-xs sm:text-sm ${selectedDate === format(new Date(new Date().setDate(new Date().getDate() + 1)), "yyyy-MM-dd")
+                      ? "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
+                      : "border-pink-200 text-pink-600 hover:bg-pink-50"
+                    }`}
                     data-testid="button-filter-tomorrow"
                   >
                     Amanhã
@@ -275,7 +463,7 @@ export default function Manager() {
                 Agendamentos - {formatDateDisplay(selectedDate)}
               </CardTitle>
               <span className="text-sm text-gray-600">
-                {appointments?.length || 0} agendamentos
+                {filteredAppointments?.length || 0} agendamentos
               </span>
             </div>
           </CardHeader>
@@ -301,10 +489,19 @@ export default function Manager() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Ações
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      WhatsApp
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {appointments?.map((appointment: Appointment) => (
+                  {filteredAppointments?.map((appointment: Appointment) => {
+                    const appointmentStatus = getAppointmentStatus(appointment);
+                    if (!appointmentStatus) return null; // Skip cancelled appointments
+                    
+                    const statusDisplay = getStatusDisplay(appointmentStatus);
+                    
+                    return (
                     <tr key={appointment.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -329,12 +526,54 @@ export default function Manager() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Badge 
-                          variant={appointment.status === "confirmed" ? "default" : "secondary"}
+                          className={statusDisplay.className}
                         >
-                          {appointment.status === "confirmed" ? "Confirmado" : "Pendente"}
+                          {statusDisplay.text}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
+                        <DropdownMenu 
+                          key={`desktop-${appointment.id}-${dropdownKeys[appointment.id] || 0}`}
+                          open={openDropdowns[appointment.id] || false}
+                          onOpenChange={(isOpen) => handleDropdownOpenChange(appointment.id, isOpen)}
+                        >
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 hover:bg-gray-100"
+                              data-testid={`actions-${appointment.id}`}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-40">
+                            <DropdownMenuItem
+                              className="cursor-pointer hover:bg-blue-50"
+                              data-testid={`reschedule-${appointment.id}`}
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                handleRescheduleAppointment(appointment);
+                              }}
+                            >
+                              <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                              <span className="text-blue-600">Remarcar</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer hover:bg-red-50"
+                              data-testid={`cancel-${appointment.id}`}
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                handleCancelAppointment(appointment);
+                              }}
+                            >
+                              <X className="w-4 h-4 mr-2 text-red-600" />
+                              <span className="text-red-600">Cancelar</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
                         <Button
                           asChild
                           size="sm"
@@ -352,14 +591,21 @@ export default function Manager() {
                         </Button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile Card View */}
             <div className="md:hidden divide-y divide-gray-200">
-              {appointments?.map((appointment: Appointment) => (
+              {filteredAppointments?.map((appointment: Appointment) => {
+                const appointmentStatus = getAppointmentStatus(appointment);
+                if (!appointmentStatus) return null; // Skip cancelled appointments
+                
+                const statusDisplay = getStatusDisplay(appointmentStatus);
+                
+                return (
                 <div key={appointment.id} className="p-4 hover:bg-gray-50">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-2">
@@ -369,9 +615,9 @@ export default function Manager() {
                       </span>
                     </div>
                     <Badge 
-                      variant={appointment.status === "confirmed" ? "default" : "secondary"}
+                      className={statusDisplay.className}
                     >
-                      {appointment.status === "confirmed" ? "Confirmado" : "Pendente"}
+                      {statusDisplay.text}
                     </Badge>
                   </div>
                   <div className="space-y-2">
@@ -388,10 +634,55 @@ export default function Manager() {
                           {appointment.clientPhone}
                         </span>
                       </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center space-x-2">
+                        <DropdownMenu
+                          key={`mobile-${appointment.id}-${dropdownKeys[`mobile-${appointment.id}`] || 0}`}
+                          open={openDropdowns[`mobile-${appointment.id}`] || false}
+                          onOpenChange={(isOpen) => handleDropdownOpenChange(`mobile-${appointment.id}`, isOpen)}
+                        >
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 hover:bg-gray-100"
+                              data-testid={`actions-mobile-${appointment.id}`}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-40">
+                            <DropdownMenuItem
+                              className="cursor-pointer hover:bg-blue-50"
+                              data-testid={`reschedule-mobile-${appointment.id}`}
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                handleRescheduleAppointment(appointment);
+                              }}
+                            >
+                              <Edit className="w-4 h-4 mr-2 text-blue-600" />
+                              <span className="text-blue-600">Remarcar</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer hover:bg-red-50"
+                              data-testid={`cancel-mobile-${appointment.id}`}
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                handleCancelAppointment(appointment);
+                              }}
+                            >
+                              <X className="w-4 h-4 mr-2 text-red-600" />
+                              <span className="text-red-600">Cancelar</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <span className="text-xs text-gray-500">Ações</span>
+                      </div>
                       <Button
                         asChild
                         size="sm"
-                        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-md hover:shadow-lg transition-all duration-200"
+                        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-md hover:shadow-lg transition-all duration-200 text-xs"
                         data-testid={`whatsapp-mobile-${appointment.id}`}
                       >
                         <a
@@ -406,11 +697,12 @@ export default function Manager() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Empty State */}
-            {(!appointments || appointments.length === 0) && (
+            {(!filteredAppointments || filteredAppointments.length === 0) && (
               <div className="p-8 text-center">
                 <CalendarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -437,6 +729,110 @@ export default function Manager() {
           </div>
         </div>
       )}
+
+      {/* Reschedule Modal */}
+      <Dialog open={showRescheduleModal} onOpenChange={setShowRescheduleModal}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md mx-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900 mb-2">
+              Remarcar Agendamento
+            </DialogTitle>
+            <p className="text-gray-600">
+              {selectedAppointment ? `Remarcando agendamento de ${selectedAppointment.clientName}` : ""}
+            </p>
+          </DialogHeader>
+
+          <form onSubmit={handleRescheduleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="reschedule-date" className="text-gray-700 font-medium">Nova Data</Label>
+              <Input
+                id="reschedule-date"
+                type="date"
+                value={rescheduleForm.date}
+                onChange={(e) => setRescheduleForm({ ...rescheduleForm, date: e.target.value })}
+                min={format(new Date(), "yyyy-MM-dd")}
+                className="mt-1 border-gray-200 focus:border-pink-400 focus:ring-pink-400"
+                required
+                data-testid="input-reschedule-date"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="reschedule-time" className="text-gray-700 font-medium">Novo Horário</Label>
+              <Input
+                id="reschedule-time"
+                type="time"
+                value={rescheduleForm.time}
+                onChange={(e) => setRescheduleForm({ ...rescheduleForm, time: e.target.value })}
+                className="mt-1 border-gray-200 focus:border-pink-400 focus:ring-pink-400"
+                required
+                data-testid="input-reschedule-time"
+              />
+            </div>
+
+            <div className="flex space-x-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowRescheduleModal(false)}
+                className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                data-testid="button-cancel-reschedule"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
+                disabled={rescheduleAppointmentMutation.isPending}
+                data-testid="button-confirm-reschedule"
+              >
+                {rescheduleAppointmentMutation.isPending ? "Remarcando..." : "Confirmar"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Confirmation Modal */}
+      <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md mx-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900 mb-2">
+              Confirmar Cancelamento
+            </DialogTitle>
+            <p className="text-gray-600">
+              {appointmentToCancel ? 
+                `Tem certeza que deseja cancelar o agendamento de ${appointmentToCancel.clientName} para ${appointmentToCancel.time}?` : 
+                "Tem certeza que deseja cancelar este agendamento?"
+              }
+            </p>
+          </DialogHeader>
+
+          <div className="flex space-x-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowCancelModal(false);
+                setAppointmentToCancel(null);
+              }}
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+              data-testid="button-cancel-confirmation"
+            >
+              Não, manter
+            </Button>
+            <Button
+              type="button"
+              onClick={confirmCancelAppointment}
+              className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white"
+              disabled={cancelAppointmentMutation.isPending}
+              data-testid="button-confirm-cancel"
+            >
+              {cancelAppointmentMutation.isPending ? "Cancelando..." : "Sim, cancelar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Login Modal */}
       <Dialog open={showLoginModal} onOpenChange={() => {}} modal={true}>
@@ -492,23 +888,7 @@ export default function Manager() {
             >
               {isLoggingIn ? "Entrando..." : "Entrar"}
             </Button>
-            
-            <Button 
-              type="button"
-              variant="ghost"
-              className="w-full text-gray-600 hover:text-gray-800"
-              onClick={() => setLocation("/")}
-              data-testid="button-cancel"
-            >
-              Voltar para Home
-            </Button>
           </form>
-          
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-center text-xs text-gray-500">
-              Para testar: usuário <strong className="text-pink-600">admin</strong>, senha <strong className="text-pink-600">admin</strong>
-            </p>
-          </div>
         </DialogContent>
       </Dialog>
     </div>

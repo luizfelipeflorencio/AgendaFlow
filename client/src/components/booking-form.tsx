@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -350,12 +349,12 @@ export default function BookingForm() {
               </div>
             </div>
             
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-3 sm:p-4 rounded-xl">
+            {/* <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-3 sm:p-4 rounded-xl">
               <p className="text-blue-800 text-xs sm:text-sm flex items-center justify-center font-medium">
                 <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></span>
                 Você receberá uma confirmação em breve!
               </p>
-            </div>
+            </div> */}
 
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
               <Button 

@@ -55,6 +55,11 @@ export default function CalendarWidget({ selectedDate, onDateSelect }: CalendarW
     return selectedDate === formatDateForInput(date);
   };
 
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
   const navigateMonth = (direction: 'prev' | 'next') => {
     const newMonth = new Date(currentMonth);
     if (direction === 'prev') {
@@ -108,6 +113,7 @@ export default function CalendarWidget({ selectedDate, onDateSelect }: CalendarW
           const isAvailable = isDateAvailable(date);
           const isCurrent = isCurrentMonth(date);
           const isSelectedDate = isSelected(date);
+          const isTodayDate = isToday(date);
           
           return (
             <button
@@ -118,15 +124,20 @@ export default function CalendarWidget({ selectedDate, onDateSelect }: CalendarW
                 aspect-square p-1 sm:p-2 lg:p-3 rounded-lg sm:rounded-xl transition-all duration-200 text-xs sm:text-sm font-medium relative
                 ${isSelectedDate 
                   ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-lg scale-105' 
-                  : isAvailable && isCurrent
-                    ? 'hover:bg-gradient-to-br hover:from-pink-100 hover:to-rose-100 hover:text-pink-700 text-gray-700 hover:scale-105'
-                    : 'text-gray-300 cursor-not-allowed'
+                  : isTodayDate && isCurrent
+                    ? 'bg-gradient-to-br from-blue-100 to-indigo-100 border-2 border-blue-300 text-blue-800 font-bold shadow-md hover:from-blue-200 hover:to-indigo-200 hover:scale-105'
+                    : isAvailable && isCurrent
+                      ? 'hover:bg-gradient-to-br hover:from-pink-100 hover:to-rose-100 hover:text-pink-700 text-gray-700 hover:scale-105'
+                      : 'text-gray-300 cursor-not-allowed'
                 }
                 ${!isCurrent ? 'opacity-30' : ''}
               `}
               data-testid={`calendar-day-${date.getDate()}`}
             >
               {date.getDate()}
+              {isTodayDate && isCurrent && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              )}
               {isSelectedDate && (
                 <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 bg-yellow-400 rounded-full"></div>
               )}
@@ -135,7 +146,17 @@ export default function CalendarWidget({ selectedDate, onDateSelect }: CalendarW
         })}
       </div>
 
-      <div className="mt-3 sm:mt-4 text-center">
+      <div className="mt-3 sm:mt-4 text-center space-y-2">
+        <div className="flex items-center justify-center space-x-4 text-xs">
+          <div className="flex items-center space-x-1">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <span className="text-blue-600 font-medium">Hoje</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
+            <span className="text-pink-600 font-medium">Selecionado</span>
+          </div>
+        </div>
         <p className="text-xs text-gray-500">
           Selecione uma data disponível para continuar
         </p>

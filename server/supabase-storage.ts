@@ -152,6 +152,52 @@ export class SupabaseStorage implements IStorage {
     return data?.map(this.convertSupabaseAppointment) || [];
   }
 
+  async updateAppointment(id: string, updates: Partial<InsertAppointment>): Promise<Appointment | undefined> {
+    const updateData: any = {};
+    
+    if (updates.clientName !== undefined) updateData.client_name = updates.clientName;
+    if (updates.clientPhone !== undefined) updateData.client_phone = updates.clientPhone;
+    if (updates.date !== undefined) updateData.date = updates.date;
+    if (updates.time !== undefined) updateData.time = updates.time;
+    if (updates.status !== undefined) updateData.status = updates.status;
+
+    const { data, error } = await supabase
+      .from('appointments')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned - appointment not found
+        return undefined;
+      }
+      throw new Error(`Failed to update appointment: ${error.message}`);
+    }
+
+    return data ? this.convertSupabaseAppointment(data) : undefined;
+  }
+
+  async cancelAppointment(id: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('appointments')
+      .update({ status: 'cancelled' })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned - appointment not found
+        return false;
+      }
+      throw new Error(`Failed to cancel appointment: ${error.message}`);
+    }
+
+    return !!data;
+  }
+
   // Managers
   async createManager(insertManager: InsertManager): Promise<Manager> {
     const { data, error } = await supabase
