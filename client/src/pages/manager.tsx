@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +42,8 @@ export default function Manager() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] = useState<Appointment | null>(null);
   
+
+  
   // Dropdown state management to fix clicking issues
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
   const [dropdownKeys, setDropdownKeys] = useState<Record<string, number>>({});
@@ -62,6 +65,8 @@ export default function Manager() {
     queryKey: ["/api/appointments"],
     enabled: isAuthenticated, // Only fetch when authenticated
   });
+
+
 
   // Cancel appointment mutation
   const cancelAppointmentMutation = useMutation({
@@ -111,6 +116,8 @@ export default function Manager() {
       });
     },
   });
+
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -226,17 +233,19 @@ export default function Manager() {
     }
     
     // Check if appointment is overdue (past date/time)
-    const appointmentDate = new Date(appointment.date);
-    const [hours, minutes] = appointment.time.split(':').map(Number);
-    appointmentDate.setHours(hours, minutes, 0, 0);
-    
-    const now = new Date();
-    
-    if (appointmentDate < now) {
-      return 'overdue'; // Past date/time - show as Pendente/Atendido
+    try {
+      const appointmentDate = new Date(appointment.date + 'T' + appointment.time + ':00');
+      const now = new Date();
+      
+      // Only show as overdue if the appointment date/time has actually passed
+      if (appointmentDate < now) {
+        return 'overdue'; // Past date/time - show as Pendente/Atendido
+      }
+    } catch (error) {
+      console.warn('Error parsing appointment date/time:', error, appointment);
     }
     
-    // Default confirmed status
+    // For confirmed status or any future appointments, show as confirmed
     return 'confirmed';
   };
 
@@ -282,6 +291,8 @@ export default function Manager() {
       },
     });
   };
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50">
@@ -833,6 +844,7 @@ export default function Manager() {
           </div>
         </DialogContent>
       </Dialog>
+
 
       {/* Login Modal */}
       <Dialog open={showLoginModal} onOpenChange={() => {}} modal={true}>

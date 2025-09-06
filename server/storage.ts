@@ -20,6 +20,8 @@ export interface IStorage {
   createTimeSlot(timeSlot: InsertTimeSlot): Promise<TimeSlot>;
   getActiveTimeSlots(): Promise<TimeSlot[]>;
   getAllTimeSlots(): Promise<TimeSlot[]>;
+  
+
 }
 
 // MemStorage implementation for development fallback
@@ -155,6 +157,8 @@ class MemStorage implements IStorage {
     return Array.from(this.timeSlots.values())
       .sort((a, b) => a.slotTime.localeCompare(b.slotTime));
   }
+
+
 }
 
 // Create storage instance based on environment

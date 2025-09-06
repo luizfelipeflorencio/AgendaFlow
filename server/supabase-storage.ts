@@ -278,4 +278,6 @@ export class SupabaseStorage implements IStorage {
 
     return data?.map(this.convertSupabaseTimeSlot) || [];
   }
+
+
 }

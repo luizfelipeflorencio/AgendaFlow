@@ -25,6 +25,8 @@ export const timeSlots = pgTable("time_slots", {
   isActive: boolean("is_active").notNull().default(true),
 });
 
+
+
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({
   id: true,
   createdAt: true,
@@ -42,6 +44,8 @@ export const insertManagerSchema = createInsertSchema(managers).omit({
 export const insertTimeSlotSchema = createInsertSchema(timeSlots).omit({
   id: true,
 });
+
+
 
 export const loginSchema = z.object({
   username: z.string().min(1, "Usuário é obrigatório"),
