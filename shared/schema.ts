@@ -25,6 +25,16 @@ export const timeSlots = pgTable("time_slots", {
   isActive: boolean("is_active").notNull().default(true),
 });
 
+export const scheduleClosures = pgTable("schedule_closures", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  closureType: text("closure_type").notNull(), // "weekly" | "specific_date"
+  dayOfWeek: text("day_of_week"), // For weekly closures: "monday", "tuesday", etc. (nullable for specific dates)
+  specificDate: text("specific_date"), // For specific date closures: "YYYY-MM-DD" (nullable for weekly)
+  reason: text("reason"), // Optional reason for closure
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 
 
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({
@@ -45,6 +55,31 @@ export const insertTimeSlotSchema = createInsertSchema(timeSlots).omit({
   id: true,
 });
 
+export const insertScheduleClosureSchema = createInsertSchema(scheduleClosures).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  closureType: z.enum(["weekly", "specific_date"], {
+    required_error: "Tipo de fechamento é obrigatório",
+  }),
+  dayOfWeek: z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]).optional(),
+  specificDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD").optional(),
+  reason: z.string().optional(),
+}).refine(
+  (data) => {
+    if (data.closureType === "weekly" && !data.dayOfWeek) {
+      return false;
+    }
+    if (data.closureType === "specific_date" && !data.specificDate) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Dia da semana é obrigatório para fechamento semanal, ou data específica para fechamento pontual",
+  }
+);
+
 
 
 export const loginSchema = z.object({
@@ -58,4 +93,6 @@ export type InsertManager = z.infer<typeof insertManagerSchema>;
 export type Manager = typeof managers.$inferSelect;
 export type InsertTimeSlot = z.infer<typeof insertTimeSlotSchema>;
 export type TimeSlot = typeof timeSlots.$inferSelect;
+export type InsertScheduleClosure = z.infer<typeof insertScheduleClosureSchema>;
+export type ScheduleClosure = typeof scheduleClosures.$inferSelect;
 export type LoginData = z.infer<typeof loginSchema>;

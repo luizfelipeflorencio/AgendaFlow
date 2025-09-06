@@ -1,5 +1,5 @@
-import { type Appointment, type InsertAppointment, type Manager, type InsertManager, type TimeSlot, type InsertTimeSlot } from "@shared/schema";
-import { supabase, type SupabaseAppointment, type SupabaseManager, type SupabaseTimeSlot } from "./supabase";
+import { type Appointment, type InsertAppointment, type Manager, type InsertManager, type TimeSlot, type InsertTimeSlot, type ScheduleClosure, type InsertScheduleClosure } from "@shared/schema";
+import { supabase, type SupabaseAppointment, type SupabaseManager, type SupabaseTimeSlot, type SupabaseScheduleClosure } from "./supabase";
 import { type IStorage } from "./storage";
 
 export class SupabaseStorage implements IStorage {
@@ -81,6 +81,18 @@ export class SupabaseStorage implements IStorage {
       id: supabaseData.id,
       slotTime: supabaseData.slot_time,
       isActive: supabaseData.is_active,
+    };
+  }
+
+  private convertSupabaseScheduleClosure(supabaseData: SupabaseScheduleClosure): ScheduleClosure {
+    return {
+      id: supabaseData.id,
+      closureType: supabaseData.closure_type as "weekly" | "specific_date",
+      dayOfWeek: supabaseData.day_of_week,
+      specificDate: supabaseData.specific_date,
+      reason: supabaseData.reason,
+      isActive: supabaseData.is_active,
+      createdAt: new Date(supabaseData.created_at),
     };
   }
 
@@ -277,6 +289,80 @@ export class SupabaseStorage implements IStorage {
     }
 
     return data?.map(this.convertSupabaseTimeSlot) || [];
+  }
+
+  // Schedule Closures
+  async createScheduleClosure(insertScheduleClosure: InsertScheduleClosure): Promise<ScheduleClosure> {
+    const { data, error } = await supabase
+      .from('schedule_closures')
+      .insert({
+        closure_type: insertScheduleClosure.closureType,
+        day_of_week: insertScheduleClosure.dayOfWeek,
+        specific_date: insertScheduleClosure.specificDate,
+        reason: insertScheduleClosure.reason,
+        is_active: insertScheduleClosure.isActive ?? true,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create schedule closure: ${error.message}`);
+    }
+
+    return this.convertSupabaseScheduleClosure(data);
+  }
+
+  async getActiveScheduleClosures(): Promise<ScheduleClosure[]> {
+    const { data, error } = await supabase
+      .from('schedule_closures')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at');
+
+    if (error) {
+      throw new Error(`Failed to get active schedule closures: ${error.message}`);
+    }
+
+    return data?.map(this.convertSupabaseScheduleClosure) || [];
+  }
+
+  async deleteScheduleClosure(id: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('schedule_closures')
+      .delete()
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned - closure not found
+        return false;
+      }
+      throw new Error(`Failed to delete schedule closure: ${error.message}`);
+    }
+
+    return !!data;
+  }
+
+  async isDateClosed(date: string): Promise<boolean> {
+    const closures = await this.getActiveScheduleClosures();
+    const dateObj = new Date(date + 'T00:00:00');
+    const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][dateObj.getDay()];
+    
+    for (const closure of closures) {
+      // Check for specific date closure
+      if (closure.closureType === 'specific_date' && closure.specificDate === date) {
+        return true;
+      }
+      
+      // Check for weekly closure
+      if (closure.closureType === 'weekly' && closure.dayOfWeek === dayOfWeek) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
 

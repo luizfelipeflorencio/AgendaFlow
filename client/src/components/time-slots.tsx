@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CalendarX } from "lucide-react";
 import type { TimeSlot } from "@shared/schema";
 
 interface TimeSlotsProps {
@@ -12,6 +13,12 @@ interface TimeSlotsProps {
 export default function TimeSlots({ selectedDate, selectedTime, onTimeSelect }: TimeSlotsProps) {
   const { data: availableSlots = [], isLoading } = useQuery<TimeSlot[]>({
     queryKey: ["/api/available-slots", selectedDate],
+    enabled: !!selectedDate,
+  });
+
+  // Check if date is closed
+  const { data: closureCheck } = useQuery<{ isClosed: boolean }>({
+    queryKey: ["/api/schedule-closures/check", selectedDate],
     enabled: !!selectedDate,
   });
 
@@ -54,6 +61,23 @@ export default function TimeSlots({ selectedDate, selectedTime, onTimeSelect }: 
             <Skeleton key={i} className="h-16 w-full" />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  // If date is closed, show closure message
+  if (closureCheck?.isClosed) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CalendarX className="w-8 h-8 text-red-600" />
+        </div>
+        <h4 className="text-lg font-medium text-gray-900 mb-2">
+          Agenda Fechada
+        </h4>
+        <p className="text-gray-500">
+          A agenda não está disponível para agendamentos nesta data.
+        </p>
       </div>
     );
   }

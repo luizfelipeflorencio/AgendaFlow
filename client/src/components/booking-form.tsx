@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Check, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,15 @@ export default function BookingForm() {
     time: "",
   });
   const [showSuccess, setShowSuccess] = useState(false);
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Check if selected date is closed
+  const { data: closureCheck } = useQuery<{ isClosed: boolean }>({
+    queryKey: ["/api/schedule-closures/check", formData.date],
+    enabled: !!formData.date,
+  });
 
   const createAppointmentMutation = useMutation({
     mutationFn: async (data: InsertAppointment) => {
@@ -55,7 +61,7 @@ export default function BookingForm() {
       });
       return;
     }
-    
+
     if (step === 3 && !formData.date) {
       toast({
         title: "Data obrigatória",
@@ -64,7 +70,16 @@ export default function BookingForm() {
       });
       return;
     }
-    
+
+    if (step === 3 && closureCheck?.isClosed) {
+      toast({
+        title: "Data indisponível",
+        description: "A agenda está fechada para a data selecionada. Por favor, escolha outra data.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setCurrentStep(step);
   };
 
@@ -77,7 +92,16 @@ export default function BookingForm() {
       });
       return;
     }
-    
+
+    if (closureCheck?.isClosed) {
+      toast({
+        title: "Data indisponível",
+        description: "A agenda está fechada para a data selecionada. Por favor, escolha outra data.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createAppointmentMutation.mutate({
       clientName: formData.clientName,
       clientPhone: formData.clientPhone,
@@ -113,7 +137,7 @@ export default function BookingForm() {
     // Parse date string as YYYY-MM-DD and create date in local timezone
     const [year, month, day] = dateStr.split('-').map(num => parseInt(num));
     const date = new Date(year, month - 1, day); // month is 0-indexed
-    
+
     return date.toLocaleDateString("pt-BR", {
       day: "numeric",
       month: "long",
@@ -155,158 +179,158 @@ export default function BookingForm() {
         </div>
       </div>
 
-        {/* Step 1: Contact Information */}
-        {currentStep === 1 && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="text-center mb-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">Seus Dados</h3>
-              <p className="text-gray-600">Para confirmarmos seu agendamento</p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="clientName" className="text-gray-700 font-medium">Nome completo</Label>
-                <Input
-                  id="clientName"
-                  type="text"
-                  placeholder="Digite seu nome completo"
-                  value={formData.clientName}
-                  onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
-                  className="mt-1 border-gray-200 focus:border-pink-400 focus:ring-pink-400"
-                  data-testid="input-client-name"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="clientPhone" className="text-gray-700 font-medium">WhatsApp</Label>
-                <PhoneInput
-                  value={formData.clientPhone}
-                  onChange={(value) => setFormData({ ...formData, clientPhone: value })}
-                />
-                <p className="text-xs text-gray-500 mt-1 flex items-center">
-                  <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                  Usado apenas para confirmação do agendamento
-                </p>
-              </div>
-            </div>
-
-            <Button 
-              onClick={() => nextStep(2)} 
-              className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 h-12 text-base font-medium"
-              data-testid="button-continue-step1"
-            >
-              Continuar
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
+      {/* Step 1: Contact Information */}
+      {currentStep === 1 && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="text-center mb-6">
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">Seus Dados</h3>
+            <p className="text-gray-600">Para confirmarmos seu agendamento</p>
           </div>
-        )}
 
-        {/* Step 2: Date Selection */}
-        {currentStep === 2 && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="text-center mb-6">
-              <div className="flex items-center justify-between mb-4 px-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => nextStep(1)}
-                  className="text-gray-500 hover:text-gray-700 flex-shrink-0"
-                  data-testid="button-back-step2"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-1" />
-                  <span className="hidden sm:inline">Voltar</span>
-                </Button>
-                <div className="text-center flex-1 px-2">
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Escolha a Data</h3>
-                  <p className="text-gray-600 text-xs sm:text-sm">Selecione o dia do seu atendimento</p>
-                </div>
-                <div className="w-16 sm:w-20 flex-shrink-0"></div>
-              </div>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="clientName" className="text-gray-700 font-medium">Nome completo</Label>
+              <Input
+                id="clientName"
+                type="text"
+                placeholder="Digite seu nome completo"
+                value={formData.clientName}
+                onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
+                className="mt-1 border-gray-200 focus:border-pink-400 focus:ring-pink-400"
+                data-testid="input-client-name"
+              />
             </div>
 
-            <CalendarWidget
-              selectedDate={formData.date}
-              onDateSelect={(date) => setFormData({ ...formData, date })}
-            />
-
-            {formData.date && (
-              <div className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 p-4 rounded-xl">
-                <div className="flex items-center justify-center">
-                  <Check className="w-5 h-5 text-pink-600 mr-3" />
-                  <span className="text-gray-800 font-medium">
-                    Data selecionada: {formatDateDisplay(formData.date)}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <Button 
-              onClick={() => nextStep(3)} 
-              className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 h-12 text-base font-medium"
-              disabled={!formData.date}
-              data-testid="button-continue-step2"
-            >
-              Ver Horários Disponíveis
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
+            <div>
+              <Label htmlFor="clientPhone" className="text-gray-700 font-medium">WhatsApp</Label>
+              <PhoneInput
+                value={formData.clientPhone}
+                onChange={(value) => setFormData({ ...formData, clientPhone: value })}
+              />
+              <p className="text-xs text-gray-500 mt-1 flex items-center">
+                <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                Usado apenas para confirmação do agendamento
+              </p>
+            </div>
           </div>
-        )}
 
-        {/* Step 3: Time Selection */}
-        {currentStep === 3 && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="text-center mb-6">
-              <div className="flex items-center justify-between mb-4 px-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => nextStep(2)}
-                  className="text-gray-500 hover:text-gray-700 flex-shrink-0"
-                  data-testid="button-back-step3"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-1" />
-                  <span className="hidden sm:inline">Voltar</span>
-                </Button>
-                <div className="text-center flex-1 px-2">
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Escolha o Horário</h3>
-                  <p className="text-gray-600 text-xs sm:text-sm">Selecione o melhor horário para você</p>
-                </div>
-                <div className="w-16 sm:w-20 flex-shrink-0"></div>
+          <Button
+            onClick={() => nextStep(2)}
+            className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 h-12 text-base font-medium"
+            data-testid="button-continue-step1"
+          >
+            Continuar
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
+        </div>
+      )}
+
+      {/* Step 2: Date Selection */}
+      {currentStep === 2 && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-between mb-4 px-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => nextStep(1)}
+                className="text-gray-500 hover:text-gray-700 flex-shrink-0"
+                data-testid="button-back-step2"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">Voltar</span>
+              </Button>
+              <div className="text-center flex-1 px-2">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Escolha a Data</h3>
+                <p className="text-gray-600 text-xs sm:text-sm">Selecione o dia do seu atendimento</p>
               </div>
+              <div className="w-16 sm:w-20 flex-shrink-0"></div>
             </div>
+          </div>
 
-            <div className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 p-4 rounded-xl mb-6">
+          <CalendarWidget
+            selectedDate={formData.date}
+            onDateSelect={(date) => setFormData({ ...formData, date })}
+          />
+
+          {formData.date && (
+            <div className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 p-4 rounded-xl">
               <div className="flex items-center justify-center">
                 <Check className="w-5 h-5 text-pink-600 mr-3" />
                 <span className="text-gray-800 font-medium">
-                  {formatDateDisplay(formData.date)}
+                  Data selecionada: {formatDateDisplay(formData.date)}
                 </span>
               </div>
             </div>
+          )}
 
-            <TimeSlots
-              selectedDate={formData.date}
-              selectedTime={formData.time}
-              onTimeSelect={(time) => setFormData({ ...formData, time })}
-            />
+          <Button
+            onClick={() => nextStep(3)}
+            className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 h-12 text-base font-medium"
+            disabled={!formData.date || closureCheck?.isClosed}
+            data-testid="button-continue-step2"
+          >
+            Ver Horários Disponíveis
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
+        </div>
+      )}
 
-            <Button 
-              onClick={confirmBooking}
-              className="w-full bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 h-12 text-base font-medium shadow-lg"
-              disabled={!formData.time || createAppointmentMutation.isPending}
-              data-testid="button-confirm-booking"
-            >
-              {createAppointmentMutation.isPending ? (
-                <>Confirmando...</>
-              ) : (
-                <>
-                  Confirmar Agendamento
-                  <Check className="w-5 h-5 ml-2" />
-                </>
-              )}
-            </Button>
+      {/* Step 3: Time Selection */}
+      {currentStep === 3 && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-between mb-4 px-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => nextStep(2)}
+                className="text-gray-500 hover:text-gray-700 flex-shrink-0"
+                data-testid="button-back-step3"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">Voltar</span>
+              </Button>
+              <div className="text-center flex-1 px-2">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Escolha o Horário</h3>
+                <p className="text-gray-600 text-xs sm:text-sm">Selecione o melhor horário para você</p>
+              </div>
+              <div className="w-16 sm:w-20 flex-shrink-0"></div>
+            </div>
           </div>
-        )}
+
+          <div className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 p-4 rounded-xl mb-6">
+            <div className="flex items-center justify-center">
+              <Check className="w-5 h-5 text-pink-600 mr-3" />
+              <span className="text-gray-800 font-medium">
+                {formatDateDisplay(formData.date)}
+              </span>
+            </div>
+          </div>
+
+          <TimeSlots
+            selectedDate={formData.date}
+            selectedTime={formData.time}
+            onTimeSelect={(time) => setFormData({ ...formData, time })}
+          />
+
+          <Button
+            onClick={confirmBooking}
+            className="w-full bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 h-12 text-base font-medium shadow-lg"
+            disabled={!formData.time || createAppointmentMutation.isPending}
+            data-testid="button-confirm-booking"
+          >
+            {createAppointmentMutation.isPending ? (
+              <>Confirmando...</>
+            ) : (
+              <>
+                Confirmar Agendamento
+                <Check className="w-5 h-5 ml-2" />
+              </>
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Success Modal */}
       <Dialog open={showSuccess} onOpenChange={closeSuccessModal}>
@@ -348,7 +372,7 @@ export default function BookingForm() {
                 </div>
               </div>
             </div>
-            
+
             {/* <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-3 sm:p-4 rounded-xl">
               <p className="text-blue-800 text-xs sm:text-sm flex items-center justify-center font-medium">
                 <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></span>
@@ -357,14 +381,14 @@ export default function BookingForm() {
             </div> */}
 
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-              <Button 
+              <Button
                 onClick={newBooking}
                 className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 h-10 sm:h-12 text-sm sm:text-base"
                 data-testid="button-new-booking"
               >
                 Novo Agendamento
               </Button>
-              <Button 
+              <Button
                 onClick={closeSuccessModal}
                 variant="outline"
                 className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 h-10 sm:h-12 text-sm sm:text-base"

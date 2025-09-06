@@ -42,3 +42,13 @@ export interface SupabaseTimeSlot {
   slot_time: string;
   is_active: boolean;
 }
+
+export interface SupabaseScheduleClosure {
+  id: string;
+  closure_type: string;
+  day_of_week: string | null;
+  specific_date: string | null;
+  reason: string | null;
+  is_active: boolean;
+  created_at: string;
+}

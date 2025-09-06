@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +10,11 @@ interface CalendarWidgetProps {
 
 export default function CalendarWidget({ selectedDate, onDateSelect }: CalendarWidgetProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Get active schedule closures
+  const { data: closures = [] } = useQuery<any[]>({
+    queryKey: ["/api/schedule-closures"],
+  });
 
   const daysOfWeek = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
   const monthNames = [
@@ -39,12 +45,62 @@ export default function CalendarWidget({ selectedDate, onDateSelect }: CalendarW
     return date.toISOString().split('T')[0];
   };
 
+  const isDateClosed = (date: Date) => {
+    const dateString = formatDateForInput(date);
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    return closures.some((closure: any) => {
+      if (!closure.isActive) return false;
+      
+      if (closure.closureType === 'specific_date') {
+        return closure.specificDate === dateString;
+      } else if (closure.closureType === 'weekly') {
+        // Map day names to numbers: Sunday = 0, Monday = 1, etc.
+        const dayMapping: { [key: string]: number } = {
+          'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
+          'thursday': 4, 'friday': 5, 'saturday': 6
+        };
+        return dayMapping[closure.dayOfWeek?.toLowerCase()] === dayOfWeek;
+      }
+      
+      return false;
+    });
+  };
+
+  const isSpecificDateClosed = (date: Date) => {
+    const dateString = formatDateForInput(date);
+    
+    return closures.some((closure: any) => {
+      if (!closure.isActive) return false;
+      return closure.closureType === 'specific_date' && closure.specificDate === dateString;
+    });
+  };
+
+  const isWeeklyDateClosed = (date: Date) => {
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    return closures.some((closure: any) => {
+      if (!closure.isActive) return false;
+      
+      if (closure.closureType === 'weekly') {
+        // Map day names to numbers: Sunday = 0, Monday = 1, etc.
+        const dayMapping: { [key: string]: number } = {
+          'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
+          'thursday': 4, 'friday': 5, 'saturday': 6
+        };
+        return dayMapping[closure.dayOfWeek?.toLowerCase()] === dayOfWeek;
+      }
+      
+      return false;
+    });
+  };
+
   const isDateAvailable = (date: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Only allow future dates (starting from today)
-    return date >= today;
+    // Only allow future dates (starting from today) and not closed dates
+    return date >= today && !isDateClosed(date);
   };
 
   const isCurrentMonth = (date: Date) => {
@@ -99,6 +155,24 @@ export default function CalendarWidget({ selectedDate, onDateSelect }: CalendarW
         </Button>
       </div>
 
+      {/* Legend */}
+      <div className="mb-4 sm:mb-6 text-center">
+        <div className="flex items-center justify-center space-x-3 sm:space-x-4 text-xs flex-wrap">
+          <div className="flex items-center space-x-1">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <span className="text-blue-600 font-medium">Hoje</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
+            <span className="text-pink-600 font-medium">Selecionado</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+            <span className="text-red-600 font-medium">Fechado</span>
+          </div>
+        </div>
+      </div>
+
       {/* Calendar Grid */}
       <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center">
         {/* Days of week header */}
@@ -114,6 +188,9 @@ export default function CalendarWidget({ selectedDate, onDateSelect }: CalendarW
           const isCurrent = isCurrentMonth(date);
           const isSelectedDate = isSelected(date);
           const isTodayDate = isToday(date);
+          const isClosed = isDateClosed(date);
+          const isSpecificClosed = isSpecificDateClosed(date);
+          const isWeeklyClosed = isWeeklyDateClosed(date);
           
           return (
             <button
@@ -121,14 +198,18 @@ export default function CalendarWidget({ selectedDate, onDateSelect }: CalendarW
               onClick={() => isAvailable && isCurrent && onDateSelect(formatDateForInput(date))}
               disabled={!isAvailable || !isCurrent}
               className={`
-                aspect-square p-1 sm:p-2 lg:p-3 rounded-lg sm:rounded-xl transition-all duration-200 text-xs sm:text-sm font-medium relative
+                aspect-square p-1 sm:p-2 lg:p-3 rounded-full transition-all duration-200 text-xs sm:text-sm font-medium relative
                 ${isSelectedDate 
                   ? 'bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-lg scale-105' 
                   : isTodayDate && isCurrent
                     ? 'bg-gradient-to-br from-blue-100 to-indigo-100 border-2 border-blue-300 text-blue-800 font-bold shadow-md hover:from-blue-200 hover:to-indigo-200 hover:scale-105'
-                    : isAvailable && isCurrent
-                      ? 'hover:bg-gradient-to-br hover:from-pink-100 hover:to-rose-100 hover:text-pink-700 text-gray-700 hover:scale-105'
-                      : 'text-gray-300 cursor-not-allowed'
+                    : isSpecificClosed && isCurrent
+                      ? ' text-red-600 cursor-not-allowed'
+                      : isWeeklyClosed && isCurrent
+                        ? 'text-red-600 cursor-not-allowed'
+                        : isAvailable && isCurrent
+                          ? 'hover:bg-gradient-to-br hover:from-pink-100 hover:to-rose-100 hover:text-pink-700 text-gray-700 hover:scale-105'
+                          : 'text-gray-300 cursor-not-allowed'
                 }
                 ${!isCurrent ? 'opacity-30' : ''}
               `}
@@ -139,27 +220,11 @@ export default function CalendarWidget({ selectedDate, onDateSelect }: CalendarW
                 <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
               )}
               {isSelectedDate && (
-                <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 bg-yellow-400 rounded-full"></div>
+                <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full"></div>
               )}
             </button>
           );
         })}
-      </div>
-
-      <div className="mt-3 sm:mt-4 text-center space-y-2">
-        <div className="flex items-center justify-center space-x-4 text-xs">
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-            <span className="text-blue-600 font-medium">Hoje</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-pink-500 rounded-full"></div>
-            <span className="text-pink-600 font-medium">Selecionado</span>
-          </div>
-        </div>
-        <p className="text-xs text-gray-500">
-          Selecione uma data disponível para continuar
-        </p>
       </div>
     </div>
   );

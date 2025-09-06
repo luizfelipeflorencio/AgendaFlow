@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { getStorage } from "./storage";
-import { insertAppointmentSchema, loginSchema } from "@shared/schema";
+import { insertAppointmentSchema, loginSchema, insertScheduleClosureSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -118,6 +118,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const storage = await getStorage();
       const { date } = req.params;
       
+      // Check if the date is closed
+      const isClosed = await storage.isDateClosed(date);
+      if (isClosed) {
+        return res.json([]); // Return empty array if date is closed
+      }
+      
       // Get all active time slots
       const allSlots = await storage.getActiveTimeSlots();
       
@@ -205,6 +211,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
         monthBookings: monthAppointments.length,
         occupancyRate
       });
+    } catch (error) {
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // Schedule Closures API
+  
+  // Create schedule closure
+  app.post("/api/schedule-closures", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const closureData = insertScheduleClosureSchema.parse(req.body);
+      
+      const closure = await storage.createScheduleClosure(closureData);
+      res.status(201).json(closure);
+    } catch (error) {
+      console.error('Error in POST /api/schedule-closures:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Dados inválidos", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // Get all active schedule closures
+  app.get("/api/schedule-closures", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const closures = await storage.getActiveScheduleClosures();
+      res.json(closures);
+    } catch (error) {
+      console.error('Error in /api/schedule-closures:', error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // Delete schedule closure
+  app.delete("/api/schedule-closures/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const { id } = req.params;
+      
+      const success = await storage.deleteScheduleClosure(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Fechamento não encontrado" });
+      }
+      
+      res.json({ message: "Fechamento removido com sucesso" });
+    } catch (error) {
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // Check if a specific date is closed
+  app.get("/api/schedule-closures/check/:date", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const { date } = req.params;
+      
+      const isClosed = await storage.isDateClosed(date);
+      res.json({ isClosed });
     } catch (error) {
       res.status(500).json({ message: "Erro interno do servidor" });
     }

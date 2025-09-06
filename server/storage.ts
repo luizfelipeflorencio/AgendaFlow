@@ -1,4 +1,4 @@
-import { type Appointment, type InsertAppointment, type Manager, type InsertManager, type TimeSlot, type InsertTimeSlot } from "@shared/schema";
+import { type Appointment, type InsertAppointment, type Manager, type InsertManager, type TimeSlot, type InsertTimeSlot, type ScheduleClosure, type InsertScheduleClosure } from "@shared/schema";
 import { randomUUID } from "crypto";
 import dotenv from "dotenv";
 dotenv.config();
@@ -21,6 +21,12 @@ export interface IStorage {
   getActiveTimeSlots(): Promise<TimeSlot[]>;
   getAllTimeSlots(): Promise<TimeSlot[]>;
   
+  // Schedule Closures
+  createScheduleClosure(closure: InsertScheduleClosure): Promise<ScheduleClosure>;
+  getActiveScheduleClosures(): Promise<ScheduleClosure[]>;
+  deleteScheduleClosure(id: string): Promise<boolean>;
+  isDateClosed(date: string): Promise<boolean>;
+  
 
 }
 
@@ -29,11 +35,13 @@ class MemStorage implements IStorage {
   private appointments: Map<string, Appointment>;
   private managers: Map<string, Manager>;
   private timeSlots: Map<string, TimeSlot>;
+  private scheduleClosures: Map<string, ScheduleClosure>;
 
   constructor() {
     this.appointments = new Map();
     this.managers = new Map();
     this.timeSlots = new Map();
+    this.scheduleClosures = new Map();
     
     // Initialize with default manager and time slots
     this.initializeDefaults();
@@ -156,6 +164,52 @@ class MemStorage implements IStorage {
   async getAllTimeSlots(): Promise<TimeSlot[]> {
     return Array.from(this.timeSlots.values())
       .sort((a, b) => a.slotTime.localeCompare(b.slotTime));
+  }
+
+  // Schedule Closures
+  async createScheduleClosure(insertScheduleClosure: InsertScheduleClosure): Promise<ScheduleClosure> {
+    const id = randomUUID();
+    const scheduleClosure: ScheduleClosure = {
+      id,
+      closureType: insertScheduleClosure.closureType,
+      dayOfWeek: insertScheduleClosure.dayOfWeek ?? null,
+      specificDate: insertScheduleClosure.specificDate ?? null,
+      reason: insertScheduleClosure.reason ?? null,
+      isActive: insertScheduleClosure.isActive ?? true,
+      createdAt: new Date(),
+    };
+    this.scheduleClosures.set(id, scheduleClosure);
+    return scheduleClosure;
+  }
+
+  async getActiveScheduleClosures(): Promise<ScheduleClosure[]> {
+    return Array.from(this.scheduleClosures.values())
+      .filter(closure => closure.isActive)
+      .sort((a, b) => a.createdAt!.getTime() - b.createdAt!.getTime());
+  }
+
+  async deleteScheduleClosure(id: string): Promise<boolean> {
+    return this.scheduleClosures.delete(id);
+  }
+
+  async isDateClosed(date: string): Promise<boolean> {
+    const closures = await this.getActiveScheduleClosures();
+    const dateObj = new Date(date + 'T00:00:00');
+    const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][dateObj.getDay()];
+    
+    for (const closure of closures) {
+      // Check for specific date closure
+      if (closure.closureType === 'specific_date' && closure.specificDate === date) {
+        return true;
+      }
+      
+      // Check for weekly closure
+      if (closure.closureType === 'weekly' && closure.dayOfWeek === dayOfWeek) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
 

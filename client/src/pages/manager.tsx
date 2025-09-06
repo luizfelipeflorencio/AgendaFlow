@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, LogOut, RefreshCw, MessageCircle, User, Clock, Calendar, UserCog, X, Edit, MoreVertical } from "lucide-react";
+import { CalendarIcon, LogOut, RefreshCw, MessageCircle, User, Clock, Calendar, UserCog, X, Edit, MoreVertical, CalendarX } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import ScheduleClosures from "@/components/schedule-closures";
 
 import {
   DropdownMenu,
@@ -26,6 +27,9 @@ export default function Manager() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState("appointments"); // "appointments" | "closures"
   
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -333,7 +337,7 @@ export default function Manager() {
             </div>
           </header>
 
-      {/* Dashboard Content */}
+        {/* Dashboard Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
         {/* Stats Cards */}
@@ -407,15 +411,44 @@ export default function Manager() {
           </Card>
         </div>
 
-        {/* Date Filter */}
-        <Card className="mb-8 bg-white/70 backdrop-blur-sm border-pink-100 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Navigation Tabs */}
+        <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1 mb-6 sm:mb-8 bg-gray-100 p-1 rounded-lg">
+          <Button
+            variant={activeTab === "appointments" ? "default" : "ghost"}
+            className={`flex-1 text-sm sm:text-base ${activeTab === "appointments" 
+              ? "bg-white shadow-sm text-gray-900" 
+              : "text-gray-600 hover:text-gray-900"}`}
+            onClick={() => setActiveTab("appointments")}
+            size="sm"
+          >
+            <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+            <span className="truncate">Agendamentos</span>
+          </Button>
+          <Button
+            variant={activeTab === "closures" ? "default" : "ghost"}
+            className={`flex-1 text-sm sm:text-base ${activeTab === "closures" 
+              ? "bg-white shadow-sm text-gray-900" 
+              : "text-gray-600 hover:text-gray-900"}`}
+            onClick={() => setActiveTab("closures")}
+            size="sm"
+          >
+            <CalendarX className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+            <span className="truncate">Fechamentos</span>
+          </Button>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === "appointments" && (
+          <>
+            {/* Date Filter */}
+            <Card className="mb-6 sm:mb-8 bg-white/70 backdrop-blur-sm border-pink-100 shadow-lg">
+          <CardContent className="pt-4 sm:pt-6">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+                <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
                   Agendamentos
                 </h2>
-                <p className="text-gray-600 text-sm">Gerencie os horários do seu salão</p>
+                <p className="text-gray-600 text-sm sm:text-base">Gerencie os horários do seu salão</p>
               </div>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                 <div className="flex flex-wrap items-center gap-2">
@@ -447,7 +480,7 @@ export default function Manager() {
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-auto min-w-[140px] border-pink-200 focus:border-pink-400 focus:ring-pink-400 text-xs sm:text-sm"
+                    className="w-auto min-w-[120px] sm:min-w-[140px] border-pink-200 focus:border-pink-400 focus:ring-pink-400 text-xs sm:text-sm"
                     data-testid="input-select-date"
                   />
                 </div>
@@ -468,12 +501,13 @@ export default function Manager() {
 
         {/* Appointments List */}
         <Card>
-          <CardHeader className="bg-gray-50 border-b">
-            <div className="flex items-center justify-between">
-              <CardTitle>
-                Agendamentos - {formatDateDisplay(selectedDate)}
+          <CardHeader className="bg-gray-50 border-b px-3 sm:px-6 py-3 sm:py-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
+              <CardTitle className="text-base sm:text-lg truncate">
+                <span className="hidden sm:inline">Agendamentos - {formatDateDisplay(selectedDate)}</span>
+                <span className="sm:hidden">Agendamentos</span>
               </CardTitle>
-              <span className="text-sm text-gray-600">
+              <span className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
                 {filteredAppointments?.length || 0} agendamentos
               </span>
             </div>
@@ -481,26 +515,26 @@ export default function Manager() {
 
           <CardContent className="p-0">
             {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Horário
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Cliente
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Contato
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Ações
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       WhatsApp
                     </th>
                   </tr>
@@ -514,35 +548,35 @@ export default function Manager() {
                     
                     return (
                     <tr key={appointment.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                          <span className="text-sm font-medium text-gray-900">
+                          <Clock className="w-3 h-3 lg:w-4 lg:h-4 text-gray-400 mr-1 lg:mr-2" />
+                          <span className="text-xs lg:text-sm font-medium text-gray-900">
                             {appointment.time}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <User className="w-4 h-4 text-gray-400 mr-2" />
-                          <span className="text-sm font-medium text-gray-900">
+                          <User className="w-3 h-3 lg:w-4 lg:h-4 text-gray-400 mr-1 lg:mr-2" />
+                          <span className="text-xs lg:text-sm font-medium text-gray-900 truncate max-w-[120px] lg:max-w-none">
                             {appointment.clientName}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900">
+                      <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
+                        <span className="text-xs lg:text-sm text-gray-900">
                           {appointment.clientPhone}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                         <Badge 
-                          className={statusDisplay.className}
+                          className={`text-xs ${statusDisplay.className}`}
                         >
                           {statusDisplay.text}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-left">
+                      <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap text-left">
                         <DropdownMenu 
                           key={`desktop-${appointment.id}-${dropdownKeys[appointment.id] || 0}`}
                           open={openDropdowns[appointment.id] || false}
@@ -552,13 +586,13 @@ export default function Manager() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-8 w-8 p-0 hover:bg-gray-100"
+                              className="h-6 w-6 lg:h-8 lg:w-8 p-0 hover:bg-gray-100"
                               data-testid={`actions-${appointment.id}`}
                             >
-                              <MoreVertical className="w-4 h-4" />
+                              <MoreVertical className="w-3 h-3 lg:w-4 lg:h-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-40">
+                          <DropdownMenuContent align="start" className="w-32 lg:w-40">
                             <DropdownMenuItem
                               className="cursor-pointer hover:bg-blue-50"
                               data-testid={`reschedule-${appointment.id}`}
@@ -567,8 +601,8 @@ export default function Manager() {
                                 handleRescheduleAppointment(appointment);
                               }}
                             >
-                              <Edit className="w-4 h-4 mr-2 text-blue-600" />
-                              <span className="text-blue-600">Remarcar</span>
+                              <Edit className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2 text-blue-600" />
+                              <span className="text-blue-600 text-xs lg:text-sm">Remarcar</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="cursor-pointer hover:bg-red-50"
@@ -578,17 +612,17 @@ export default function Manager() {
                                 handleCancelAppointment(appointment);
                               }}
                             >
-                              <X className="w-4 h-4 mr-2 text-red-600" />
-                              <span className="text-red-600">Cancelar</span>
+                              <X className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-2 text-red-600" />
+                              <span className="text-red-600 text-xs lg:text-sm">Cancelar</span>
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-left">
+                      <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap text-left">
                         <Button
                           asChild
                           size="sm"
-                          className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-md hover:shadow-lg transition-all duration-200"
+                          className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-md hover:shadow-lg transition-all duration-200 text-xs lg:text-sm px-2 lg:px-3"
                           data-testid={`whatsapp-${appointment.id}`}
                         >
                           <a
@@ -596,8 +630,9 @@ export default function Manager() {
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            <MessageCircle className="w-4 h-4 mr-1" />
-                            WhatsApp
+                            <MessageCircle className="w-3 h-3 lg:w-4 lg:h-4 mr-1" />
+                            <span className="hidden lg:inline">WhatsApp</span>
+                            <span className="lg:hidden">WA</span>
                           </a>
                         </Button>
                       </td>
@@ -608,8 +643,8 @@ export default function Manager() {
               </table>
             </div>
 
-            {/* Mobile Card View */}
-            <div className="md:hidden divide-y divide-gray-200">
+            {/* Tablet and Mobile Card View */}
+            <div className="lg:hidden divide-y divide-gray-200">
               {filteredAppointments?.map((appointment: Appointment) => {
                 const appointmentStatus = getAppointmentStatus(appointment);
                 if (!appointmentStatus) return null; // Skip cancelled appointments
@@ -617,16 +652,16 @@ export default function Manager() {
                 const statusDisplay = getStatusDisplay(appointmentStatus);
                 
                 return (
-                <div key={appointment.id} className="p-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between mb-3">
+                <div key={appointment.id} className="p-3 sm:p-4 hover:bg-gray-50">
+                  <div className="flex items-center justify-between mb-2 sm:mb-3">
                     <div className="flex items-center space-x-2">
                       <Clock className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium text-gray-900">
+                      <span className="text-sm sm:text-base font-medium text-gray-900">
                         {appointment.time}
                       </span>
                     </div>
                     <Badge 
-                      className={statusDisplay.className}
+                      className={`text-xs ${statusDisplay.className}`}
                     >
                       {statusDisplay.text}
                     </Badge>
@@ -634,19 +669,17 @@ export default function Manager() {
                   <div className="space-y-2">
                     <div className="flex items-center">
                       <User className="w-4 h-4 text-gray-400 mr-2" />
-                      <span className="text-sm text-gray-900">
+                      <span className="text-sm sm:text-base text-gray-900 truncate">
                         {appointment.clientName}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <MessageCircle className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-600">
-                          {appointment.clientPhone}
-                        </span>
-                      </div>
+                    <div className="flex items-center">
+                      <MessageCircle className="w-4 h-4 text-gray-400 mr-2" />
+                      <span className="text-sm text-gray-600">
+                        {appointment.clientPhone}
+                      </span>
                     </div>
-                    <div className="flex items-center justify-between mt-3">
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100">
                       <div className="flex items-center space-x-2">
                         <DropdownMenu
                           key={`mobile-${appointment.id}-${dropdownKeys[`mobile-${appointment.id}`] || 0}`}
@@ -693,7 +726,7 @@ export default function Manager() {
                       <Button
                         asChild
                         size="sm"
-                        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-md hover:shadow-lg transition-all duration-200 text-xs"
+                        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 shadow-md hover:shadow-lg transition-all duration-200 text-xs sm:text-sm px-2 sm:px-3 py-1.5"
                         data-testid={`whatsapp-mobile-${appointment.id}`}
                       >
                         <a
@@ -702,7 +735,8 @@ export default function Manager() {
                           rel="noopener noreferrer"
                         >
                           <MessageCircle className="w-4 h-4 mr-1" />
-                          WhatsApp
+                          <span className="hidden sm:inline">WhatsApp</span>
+                          <span className="sm:hidden">WA</span>
                         </a>
                       </Button>
                     </div>
@@ -714,18 +748,24 @@ export default function Manager() {
 
             {/* Empty State */}
             {(!filteredAppointments || filteredAppointments.length === 0) && (
-              <div className="p-8 text-center">
-                <CalendarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <div className="p-6 sm:p-8 text-center">
+                <CalendarIcon className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                   Nenhum agendamento encontrado
                 </h3>
-                <p className="text-gray-500">
+                <p className="text-sm sm:text-base text-gray-500">
                   Não há agendamentos para esta data.
                 </p>
               </div>
             )}
           </CardContent>
         </Card>
+          </>
+        )}
+
+        {activeTab === "closures" && (
+          <ScheduleClosures />
+        )}
       </div>
         </>
       ) : (
@@ -743,57 +783,57 @@ export default function Manager() {
 
       {/* Reschedule Modal */}
       <Dialog open={showRescheduleModal} onOpenChange={setShowRescheduleModal}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-md mx-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] max-w-md mx-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900 mb-2">
+            <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
               Remarcar Agendamento
             </DialogTitle>
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               {selectedAppointment ? `Remarcando agendamento de ${selectedAppointment.clientName}` : ""}
             </p>
           </DialogHeader>
 
           <form onSubmit={handleRescheduleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="reschedule-date" className="text-gray-700 font-medium">Nova Data</Label>
+              <Label htmlFor="reschedule-date" className="text-sm sm:text-base text-gray-700 font-medium">Nova Data</Label>
               <Input
                 id="reschedule-date"
                 type="date"
                 value={rescheduleForm.date}
                 onChange={(e) => setRescheduleForm({ ...rescheduleForm, date: e.target.value })}
                 min={format(new Date(), "yyyy-MM-dd")}
-                className="mt-1 border-gray-200 focus:border-pink-400 focus:ring-pink-400"
+                className="mt-1 border-gray-200 focus:border-pink-400 focus:ring-pink-400 text-sm sm:text-base"
                 required
                 data-testid="input-reschedule-date"
               />
             </div>
             
             <div>
-              <Label htmlFor="reschedule-time" className="text-gray-700 font-medium">Novo Horário</Label>
+              <Label htmlFor="reschedule-time" className="text-sm sm:text-base text-gray-700 font-medium">Novo Horário</Label>
               <Input
                 id="reschedule-time"
                 type="time"
                 value={rescheduleForm.time}
                 onChange={(e) => setRescheduleForm({ ...rescheduleForm, time: e.target.value })}
-                className="mt-1 border-gray-200 focus:border-pink-400 focus:ring-pink-400"
+                className="mt-1 border-gray-200 focus:border-pink-400 focus:ring-pink-400 text-sm sm:text-base"
                 required
                 data-testid="input-reschedule-time"
               />
             </div>
 
-            <div className="flex space-x-3 pt-4">
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setShowRescheduleModal(false)}
-                className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+                className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 text-sm sm:text-base py-2 sm:py-3"
                 data-testid="button-cancel-reschedule"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
+                className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-sm sm:text-base py-2 sm:py-3"
                 disabled={rescheduleAppointmentMutation.isPending}
                 data-testid="button-confirm-reschedule"
               >
@@ -806,12 +846,12 @@ export default function Manager() {
 
       {/* Cancel Confirmation Modal */}
       <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-md mx-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] max-w-md mx-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900 mb-2">
+            <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
               Confirmar Cancelamento
             </DialogTitle>
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               {appointmentToCancel ? 
                 `Tem certeza que deseja cancelar o agendamento de ${appointmentToCancel.clientName} para ${appointmentToCancel.time}?` : 
                 "Tem certeza que deseja cancelar este agendamento?"
@@ -819,7 +859,7 @@ export default function Manager() {
             </p>
           </DialogHeader>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
             <Button
               type="button"
               variant="outline"
@@ -827,7 +867,7 @@ export default function Manager() {
                 setShowCancelModal(false);
                 setAppointmentToCancel(null);
               }}
-              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 text-sm sm:text-base py-2 sm:py-3"
               data-testid="button-cancel-confirmation"
             >
               Não, manter
@@ -835,7 +875,7 @@ export default function Manager() {
             <Button
               type="button"
               onClick={confirmCancelAppointment}
-              className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white"
+              className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-sm sm:text-base py-2 sm:py-3"
               disabled={cancelAppointmentMutation.isPending}
               data-testid="button-confirm-cancel"
             >
@@ -848,16 +888,16 @@ export default function Manager() {
 
       {/* Login Modal */}
       <Dialog open={showLoginModal} onOpenChange={() => {}} modal={true}>
-        <DialogContent className="w-full max-w-md mx-4" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-md mx-2 sm:mx-4" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <div className="text-center mb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <UserCog className="w-8 h-8 text-white" />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <UserCog className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
               </div>
-              <DialogTitle className="text-2xl font-bold text-gray-900">
+              <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900">
                 Acesso do Gerente
               </DialogTitle>
-              <p className="text-gray-600 mt-2">
+              <p className="text-sm sm:text-base text-gray-600 mt-2">
                 Digite suas credenciais para continuar
               </p>
             </div>
@@ -865,28 +905,28 @@ export default function Manager() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <Label htmlFor="username" className="text-gray-700">Usuário</Label>
+              <Label htmlFor="username" className="text-sm sm:text-base text-gray-700">Usuário</Label>
               <Input
                 id="username"
                 type="text"
                 placeholder="Digite seu usuário"
                 value={loginForm.username}
                 onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                className="mt-1"
+                className="mt-1 text-sm sm:text-base py-2 sm:py-3"
                 required
                 data-testid="input-username"
               />
             </div>
             
             <div>
-              <Label htmlFor="password" className="text-gray-700">Senha</Label>
+              <Label htmlFor="password" className="text-sm sm:text-base text-gray-700">Senha</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="Digite sua senha"
                 value={loginForm.password}
                 onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                className="mt-1"
+                className="mt-1 text-sm sm:text-base py-2 sm:py-3"
                 required
                 data-testid="input-password"
               />
@@ -894,7 +934,7 @@ export default function Manager() {
 
             <Button 
               type="submit" 
-              className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
+              className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-sm sm:text-base py-2 sm:py-3"
               disabled={isLoggingIn}
               data-testid="button-login"
             >
