@@ -52,3 +52,13 @@ export interface SupabaseScheduleClosure {
   is_active: boolean;
   created_at: string;
 }
+
+export interface SupabaseTimeSlotBlock {
+  id: string;
+  specific_date: string;
+  start_time: string;
+  end_time: string;
+  reason: string | null;
+  is_active: boolean;
+  created_at: string;
+}

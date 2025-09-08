@@ -1,5 +1,5 @@
-import { type Appointment, type InsertAppointment, type Manager, type InsertManager, type TimeSlot, type InsertTimeSlot, type ScheduleClosure, type InsertScheduleClosure } from "@shared/schema";
-import { supabase, type SupabaseAppointment, type SupabaseManager, type SupabaseTimeSlot, type SupabaseScheduleClosure } from "./supabase";
+import { type Appointment, type InsertAppointment, type Manager, type InsertManager, type TimeSlot, type InsertTimeSlot, type ScheduleClosure, type InsertScheduleClosure, type TimeSlotBlock, type InsertTimeSlotBlock } from "@shared/schema";
+import { supabase, type SupabaseAppointment, type SupabaseManager, type SupabaseTimeSlot, type SupabaseScheduleClosure, type SupabaseTimeSlotBlock } from "./supabase";
 import { type IStorage } from "./storage";
 
 export class SupabaseStorage implements IStorage {
@@ -90,6 +90,18 @@ export class SupabaseStorage implements IStorage {
       closureType: supabaseData.closure_type as "weekly" | "specific_date",
       dayOfWeek: supabaseData.day_of_week,
       specificDate: supabaseData.specific_date,
+      reason: supabaseData.reason,
+      isActive: supabaseData.is_active,
+      createdAt: new Date(supabaseData.created_at),
+    };
+  }
+
+  private convertSupabaseTimeSlotBlock(supabaseData: SupabaseTimeSlotBlock): TimeSlotBlock {
+    return {
+      id: supabaseData.id,
+      specificDate: supabaseData.specific_date,
+      startTime: supabaseData.start_time,
+      endTime: supabaseData.end_time,
       reason: supabaseData.reason,
       isActive: supabaseData.is_active,
       createdAt: new Date(supabaseData.created_at),
@@ -291,6 +303,49 @@ export class SupabaseStorage implements IStorage {
     return data?.map(this.convertSupabaseTimeSlot) || [];
   }
 
+  async updateTimeSlot(id: string, updates: Partial<InsertTimeSlot>): Promise<TimeSlot | undefined> {
+    const updateData: any = {};
+    
+    if (updates.slotTime !== undefined) updateData.slot_time = updates.slotTime;
+    if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
+
+    const { data, error } = await supabase
+      .from('time_slots')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned - time slot not found
+        return undefined;
+      }
+      throw new Error(`Failed to update time slot: ${error.message}`);
+    }
+
+    return data ? this.convertSupabaseTimeSlot(data) : undefined;
+  }
+
+  async deleteTimeSlot(id: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('time_slots')
+      .delete()
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned - time slot not found
+        return false;
+      }
+      throw new Error(`Failed to delete time slot: ${error.message}`);
+    }
+
+    return !!data;
+  }
+
   // Schedule Closures
   async createScheduleClosure(insertScheduleClosure: InsertScheduleClosure): Promise<ScheduleClosure> {
     const { data, error } = await supabase
@@ -358,6 +413,133 @@ export class SupabaseStorage implements IStorage {
       
       // Check for weekly closure
       if (closure.closureType === 'weekly' && closure.dayOfWeek === dayOfWeek) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  // Time Slot Blocks
+  async createTimeSlotBlock(insertTimeSlotBlock: InsertTimeSlotBlock): Promise<TimeSlotBlock> {
+    try {
+      const { data, error } = await supabase
+        .from('time_slot_blocks')
+        .insert({
+          specific_date: insertTimeSlotBlock.specificDate,
+          start_time: insertTimeSlotBlock.startTime,
+          end_time: insertTimeSlotBlock.endTime,
+          reason: insertTimeSlotBlock.reason,
+          is_active: insertTimeSlotBlock.isActive ?? true,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        if (error.message.includes('Could not find the table')) {
+          throw new Error('Time slot blocks table not found. Please create the table in Supabase first.');
+        }
+        throw new Error(`Failed to create time slot block: ${error.message}`);
+      }
+
+      return this.convertSupabaseTimeSlotBlock(data);
+    } catch (error: any) {
+      throw error;
+    }
+  }
+
+  async getTimeSlotBlocksByDate(date: string): Promise<TimeSlotBlock[]> {
+    try {
+      const { data, error } = await supabase
+        .from('time_slot_blocks')
+        .select('*')
+        .eq('specific_date', date)
+        .eq('is_active', true)
+        .order('start_time');
+
+      if (error) {
+        // If table doesn't exist, return empty array instead of throwing error
+        if (error.message.includes('Could not find the table')) {
+          console.warn('time_slot_blocks table not found in Supabase, returning empty array');
+          return [];
+        }
+        throw new Error(`Failed to get time slot blocks: ${error.message}`);
+      }
+
+      return data?.map(this.convertSupabaseTimeSlotBlock) || [];
+    } catch (error: any) {
+      console.warn('Error accessing time_slot_blocks table:', error.message);
+      return [];
+    }
+  }
+
+  async getActiveTimeSlotBlocks(): Promise<TimeSlotBlock[]> {
+    try {
+      const { data, error } = await supabase
+        .from('time_slot_blocks')
+        .select('*')
+        .eq('is_active', true)
+        .order('specific_date')
+        .order('start_time');
+
+      if (error) {
+        // If table doesn't exist, return empty array instead of throwing error
+        if (error.message.includes('Could not find the table')) {
+          console.warn('time_slot_blocks table not found in Supabase, returning empty array');
+          return [];
+        }
+        throw new Error(`Failed to get active time slot blocks: ${error.message}`);
+      }
+
+      return data?.map(this.convertSupabaseTimeSlotBlock) || [];
+    } catch (error: any) {
+      console.warn('Error accessing time_slot_blocks table:', error.message);
+      return [];
+    }
+  }
+
+  async deleteTimeSlotBlock(id: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase
+        .from('time_slot_blocks')
+        .delete()
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        if (error.message.includes('Could not find the table')) {
+          console.warn('time_slot_blocks table not found in Supabase');
+          return false;
+        }
+        if (error.code === 'PGRST116') {
+          // No rows returned - block not found
+          return false;
+        }
+        throw new Error(`Failed to delete time slot block: ${error.message}`);
+      }
+
+      return !!data;
+    } catch (error: any) {
+      console.warn('Error deleting time slot block:', error.message);
+      return false;
+    }
+  }
+
+  async isTimeSlotBlocked(date: string, time: string): Promise<boolean> {
+    const blocks = await this.getTimeSlotBlocksByDate(date);
+    
+    for (const block of blocks) {
+      const [blockStartHour, blockStartMin] = block.startTime.split(':').map(Number);
+      const [blockEndHour, blockEndMin] = block.endTime.split(':').map(Number);
+      const [timeHour, timeMin] = time.split(':').map(Number);
+      
+      const blockStartMinutes = blockStartHour * 60 + blockStartMin;
+      const blockEndMinutes = blockEndHour * 60 + blockEndMin;
+      const timeMinutes = timeHour * 60 + timeMin;
+      
+      // Check if the time falls within the blocked range
+      if (timeMinutes >= blockStartMinutes && timeMinutes < blockEndMinutes) {
         return true;
       }
     }

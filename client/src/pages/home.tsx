@@ -10,12 +10,12 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-3 sm:py-4">
             <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center">
-                <Sparkles className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center">
+                <img src="/image.png" alt="Um calendario com uma pessoa dentro representando algo sobre salão" />
               </div>
               <div>
                 <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-                  Beauty Studio
+                  AgendaFlow
                 </h1>
                 <p className="text-xs sm:text-sm text-gray-600">Agendamento Online</p>
               </div>
@@ -39,16 +39,16 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            
+
             <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 sm:mb-6">
               Agende seu{" "}
               <span className="bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
                 Horário
               </span>
             </h1>
-            
+
             <p className="text-base sm:text-xl text-gray-600 mb-6 sm:mb-8 leading-relaxed px-2">
-              Reserve seu atendimento de beleza de forma rápida e fácil. 
+              Reserve seu atendimento de beleza de forma rápida e fácil.
               <br className="hidden sm:block" />
               Profissionais qualificados, horários flexíveis.
             </p>
@@ -82,7 +82,7 @@ export default function Home() {
               Preencha os dados abaixo para agendar
             </p>
           </div>
-          
+
           <div className="p-4 sm:p-8">
             <BookingForm />
           </div>

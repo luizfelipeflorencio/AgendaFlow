@@ -1,4 +1,4 @@
-import { type Appointment, type InsertAppointment, type Manager, type InsertManager, type TimeSlot, type InsertTimeSlot, type ScheduleClosure, type InsertScheduleClosure } from "@shared/schema";
+import { type Appointment, type InsertAppointment, type Manager, type InsertManager, type TimeSlot, type InsertTimeSlot, type ScheduleClosure, type InsertScheduleClosure, type TimeSlotBlock, type InsertTimeSlotBlock } from "@shared/schema";
 import { randomUUID } from "crypto";
 import dotenv from "dotenv";
 dotenv.config();
@@ -20,12 +20,21 @@ export interface IStorage {
   createTimeSlot(timeSlot: InsertTimeSlot): Promise<TimeSlot>;
   getActiveTimeSlots(): Promise<TimeSlot[]>;
   getAllTimeSlots(): Promise<TimeSlot[]>;
+  updateTimeSlot(id: string, updates: Partial<InsertTimeSlot>): Promise<TimeSlot | undefined>;
+  deleteTimeSlot(id: string): Promise<boolean>;
   
   // Schedule Closures
   createScheduleClosure(closure: InsertScheduleClosure): Promise<ScheduleClosure>;
   getActiveScheduleClosures(): Promise<ScheduleClosure[]>;
   deleteScheduleClosure(id: string): Promise<boolean>;
   isDateClosed(date: string): Promise<boolean>;
+  
+  // Time Slot Blocks
+  createTimeSlotBlock(timeSlotBlock: InsertTimeSlotBlock): Promise<TimeSlotBlock>;
+  getTimeSlotBlocksByDate(date: string): Promise<TimeSlotBlock[]>;
+  getActiveTimeSlotBlocks(): Promise<TimeSlotBlock[]>;
+  deleteTimeSlotBlock(id: string): Promise<boolean>;
+  isTimeSlotBlocked(date: string, time: string): Promise<boolean>;
   
 
 }
@@ -36,12 +45,14 @@ class MemStorage implements IStorage {
   private managers: Map<string, Manager>;
   private timeSlots: Map<string, TimeSlot>;
   private scheduleClosures: Map<string, ScheduleClosure>;
+  private timeSlotBlocks: Map<string, TimeSlotBlock>;
 
   constructor() {
     this.appointments = new Map();
     this.managers = new Map();
     this.timeSlots = new Map();
     this.scheduleClosures = new Map();
+    this.timeSlotBlocks = new Map();
     
     // Initialize with default manager and time slots
     this.initializeDefaults();
@@ -166,6 +177,22 @@ class MemStorage implements IStorage {
       .sort((a, b) => a.slotTime.localeCompare(b.slotTime));
   }
 
+  async updateTimeSlot(id: string, updates: Partial<InsertTimeSlot>): Promise<TimeSlot | undefined> {
+    const existing = this.timeSlots.get(id);
+    if (!existing) return undefined;
+    
+    const updated: TimeSlot = {
+      ...existing,
+      ...updates,
+    };
+    this.timeSlots.set(id, updated);
+    return updated;
+  }
+
+  async deleteTimeSlot(id: string): Promise<boolean> {
+    return this.timeSlots.delete(id);
+  }
+
   // Schedule Closures
   async createScheduleClosure(insertScheduleClosure: InsertScheduleClosure): Promise<ScheduleClosure> {
     const id = randomUUID();
@@ -212,6 +239,63 @@ class MemStorage implements IStorage {
     return false;
   }
 
+  // Time Slot Blocks
+  async createTimeSlotBlock(insertTimeSlotBlock: InsertTimeSlotBlock): Promise<TimeSlotBlock> {
+    const id = randomUUID();
+    const timeSlotBlock: TimeSlotBlock = {
+      id,
+      specificDate: insertTimeSlotBlock.specificDate,
+      startTime: insertTimeSlotBlock.startTime,
+      endTime: insertTimeSlotBlock.endTime,
+      reason: insertTimeSlotBlock.reason ?? null,
+      isActive: insertTimeSlotBlock.isActive ?? true,
+      createdAt: new Date(),
+    };
+    this.timeSlotBlocks.set(id, timeSlotBlock);
+    return timeSlotBlock;
+  }
+
+  async getTimeSlotBlocksByDate(date: string): Promise<TimeSlotBlock[]> {
+    return Array.from(this.timeSlotBlocks.values())
+      .filter(block => block.isActive && block.specificDate === date)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }
+
+  async getActiveTimeSlotBlocks(): Promise<TimeSlotBlock[]> {
+    return Array.from(this.timeSlotBlocks.values())
+      .filter(block => block.isActive)
+      .sort((a, b) => {
+        const dateCompare = a.specificDate.localeCompare(b.specificDate);
+        if (dateCompare !== 0) return dateCompare;
+        return a.startTime.localeCompare(b.startTime);
+      });
+  }
+
+  async deleteTimeSlotBlock(id: string): Promise<boolean> {
+    return this.timeSlotBlocks.delete(id);
+  }
+
+  async isTimeSlotBlocked(date: string, time: string): Promise<boolean> {
+    const blocks = await this.getTimeSlotBlocksByDate(date);
+    
+    for (const block of blocks) {
+      const [blockStartHour, blockStartMin] = block.startTime.split(':').map(Number);
+      const [blockEndHour, blockEndMin] = block.endTime.split(':').map(Number);
+      const [timeHour, timeMin] = time.split(':').map(Number);
+      
+      const blockStartMinutes = blockStartHour * 60 + blockStartMin;
+      const blockEndMinutes = blockEndHour * 60 + blockEndMin;
+      const timeMinutes = timeHour * 60 + timeMin;
+      
+      // Check if the time falls within the blocked range
+      if (timeMinutes >= blockStartMinutes && timeMinutes < blockEndMinutes) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
 
 }
 
@@ -223,14 +307,14 @@ async function createStorage(): Promise<IStorage> {
     return storageInstance;
   }
   
-  console.log('Environment:', process.env.NODE_ENV);
-  console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
-  console.log('SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY);
-  console.log('SUPABASE_URL and SUPABASE_ANON_KEY:', process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+  // console.log('Environment:', process.env.NODE_ENV);
+  // console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
+  // console.log('SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY);
+  // console.log('SUPABASE_URL and SUPABASE_ANON_KEY:', process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
   const useSupabase = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY;
   
   if (useSupabase) {
-    console.log('🔥 Using Supabase storage');
+    console.log('🔥 Usando Supabase Storage');
     // Dynamic import to avoid issues if Supabase is not configured
     try {
       const { SupabaseStorage } = await import('./supabase-storage');

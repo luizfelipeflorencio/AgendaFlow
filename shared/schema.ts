@@ -35,6 +35,16 @@ export const scheduleClosures = pgTable("schedule_closures", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const timeSlotBlocks = pgTable("time_slot_blocks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  specificDate: text("specific_date").notNull(), // Format: YYYY-MM-DD
+  startTime: text("start_time").notNull(), // Format: HH:MM
+  endTime: text("end_time").notNull(), // Format: HH:MM
+  reason: text("reason"), // Optional reason for the block
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 
 
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({
@@ -80,6 +90,29 @@ export const insertScheduleClosureSchema = createInsertSchema(scheduleClosures).
   }
 );
 
+export const insertTimeSlotBlockSchema = createInsertSchema(timeSlotBlocks).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  specificDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD"),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/, "Horário de início deve estar no formato HH:MM"),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/, "Horário de fim deve estar no formato HH:MM"),
+  reason: z.string().optional(),
+}).refine(
+  (data) => {
+    // Validate that end time is after start time
+    const [startHour, startMin] = data.startTime.split(':').map(Number);
+    const [endHour, endMin] = data.endTime.split(':').map(Number);
+    const startTotalMinutes = startHour * 60 + startMin;
+    const endTotalMinutes = endHour * 60 + endMin;
+    return endTotalMinutes > startTotalMinutes;
+  },
+  {
+    message: "Horário de fim deve ser posterior ao horário de início",
+    path: ["endTime"],
+  }
+);
+
 
 
 export const loginSchema = z.object({
@@ -95,4 +128,6 @@ export type InsertTimeSlot = z.infer<typeof insertTimeSlotSchema>;
 export type TimeSlot = typeof timeSlots.$inferSelect;
 export type InsertScheduleClosure = z.infer<typeof insertScheduleClosureSchema>;
 export type ScheduleClosure = typeof scheduleClosures.$inferSelect;
+export type InsertTimeSlotBlock = z.infer<typeof insertTimeSlotBlockSchema>;
+export type TimeSlotBlock = typeof timeSlotBlocks.$inferSelect;
 export type LoginData = z.infer<typeof loginSchema>;

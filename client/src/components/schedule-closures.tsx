@@ -1,47 +1,23 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CalendarX, X, Plus, Trash2, Calendar, Clock, Clock10 } from "lucide-react";
+import { CalendarX, X, Plus, Trash2, Calendar, Clock, Clock10, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { ScheduleClosure, InsertScheduleClosure } from "@shared/schema";
 
-const weekDays = [
-  { value: "monday", label: "Segunda-feira" },
-  { value: "tuesday", label: "Terça-feira" },
-  { value: "wednesday", label: "Quarta-feira" },
-  { value: "thursday", label: "Quinta-feira" },
-  { value: "friday", label: "Sexta-feira" },
-  { value: "saturday", label: "Sábado" },
-  { value: "sunday", label: "Domingo" },
-];
-
-const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-};
-
-const getDayName = (dayValue: string) => {
-  return weekDays.find(day => day.value === dayValue)?.label || dayValue;
-};
-
 export default function ScheduleClosures() {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [closureToDelete, setClosureToDelete] = useState<ScheduleClosure | null>(null);
   const [closureType, setClosureType] = useState<"weekly" | "specific_date">("weekly");
-  const [formData, setFormData] = useState({
-    dayOfWeek: "",
-    specificDate: "",
-    reason: "",
-  });
+  const [selectedDay, setSelectedDay] = useState<string | null>(null); // For weekly closures
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // For specific date closures
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -89,6 +65,8 @@ export default function ScheduleClosures() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/schedule-closures"] });
       queryClient.invalidateQueries({ queryKey: ["/api/available-slots"] });
+      setShowDeleteModal(false);
+      setClosureToDelete(null);
     },
     onError: (error: any) => {
       toast({
@@ -100,30 +78,40 @@ export default function ScheduleClosures() {
   });
 
   const resetForm = () => {
-    setFormData({
-      dayOfWeek: "",
-      specificDate: "",
-      reason: "",
-    });
+    setSelectedDay(null);
+    setSelectedDate(new Date().toISOString().split('T')[0]);
     setClosureType("weekly");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (closureType === "weekly" && !selectedDay) {
+      toast({
+        title: "Erro",
+        description: "Por favor, selecione um dia da semana.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const data: InsertScheduleClosure = {
       closureType,
-      ...(closureType === "weekly" && { dayOfWeek: formData.dayOfWeek as any }),
-      ...(closureType === "specific_date" && { specificDate: formData.specificDate }),
-      reason: formData.reason || undefined,
+      ...(closureType === "weekly" && { dayOfWeek: selectedDay as any }),
+      ...(closureType === "specific_date" && { specificDate: selectedDate }),
     };
 
     createClosureMutation.mutate(data);
   };
 
   const handleDelete = (closure: ScheduleClosure) => {
-    if (window.confirm("Tem certeza que deseja remover este fechamento?")) {
-      deleteClosureMutation.mutate(closure.id);
+    setClosureToDelete(closure);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (closureToDelete) {
+      deleteClosureMutation.mutate(closureToDelete.id);
     }
   };
 
@@ -295,8 +283,8 @@ export default function ScheduleClosures() {
                 </Label>
                 <select
                   id="dayOfWeek"
-                  value={formData.dayOfWeek}
-                  onChange={(e) => setFormData({ ...formData, dayOfWeek: e.target.value })}
+                  value={selectedDay || ""}
+                  onChange={(e) => setSelectedDay(e.target.value)}
                   className="w-full mt-1 p-2 text-sm border border-gray-200 rounded-lg focus:border-red-400 focus:ring-red-400"
                   required
                 >
@@ -319,29 +307,14 @@ export default function ScheduleClosures() {
                 <Input
                   id="specificDate"
                   type="date"
-                  value={formData.specificDate}
-                  onChange={(e) => setFormData({ ...formData, specificDate: e.target.value })}
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
                   className="mt-1 text-sm border-gray-200 focus:border-red-400 focus:ring-red-400"
                   required
                 />
               </div>
             )}
-
-            {/* Reason */}
-            <div>
-              <Label htmlFor="reason" className="text-gray-700 font-medium text-sm">
-                Motivo (opcional)
-              </Label>
-              <Input
-                id="reason"
-                type="text"
-                placeholder="Ex: Feriado, Férias, Compromisso pessoal"
-                value={formData.reason}
-                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                className="mt-1 text-sm border-gray-200 focus:border-red-400 focus:ring-red-400"
-              />
-            </div>
 
             <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-2 sm:pt-4">
               <Button
@@ -366,6 +339,66 @@ export default function ScheduleClosures() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Closure Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md mx-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
+              Remover Fechamento
+            </DialogTitle>
+            <p className="text-gray-600 text-sm">
+              Você tem certeza de que deseja remover este fechamento?
+            </p>
+          </DialogHeader>
+
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 pt-2 sm:pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setClosureToDelete(null);
+              }}
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 text-sm"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDelete}
+              className="flex-1 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-sm"
+              disabled={deleteClosureMutation.isPending}
+            >
+              {deleteClosureMutation.isPending ? "Removendo..." : "Remover Fechamento"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+const weekDays = [
+  { value: "monday", label: "Segunda-feira" },
+  { value: "tuesday", label: "Terça-feira" },
+  { value: "wednesday", label: "Quarta-feira" },
+  { value: "thursday", label: "Quinta-feira" },
+  { value: "friday", label: "Sexta-feira" },
+  { value: "saturday", label: "Sábado" },
+  { value: "sunday", label: "Domingo" },
+];
+
+const formatDate = (dateStr: string) => {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
+
+const getDayName = (dayValue: string) => {
+  return weekDays.find(day => day.value === dayValue)?.label || dayValue;
+};
