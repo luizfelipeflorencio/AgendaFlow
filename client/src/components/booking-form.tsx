@@ -53,10 +53,10 @@ export default function BookingForm() {
   });
 
   const nextStep = (step: number) => {
-    if (step === 2 && (!formData.clientName || !formData.clientPhone)) {
+    if (step === 2 && (!formData.clientName.trim() || !formData.clientPhone || !isValidPhoneNumber(formData.clientPhone))) {
       toast({
         title: "Dados obrigatórios",
-        description: "Por favor, preencha nome e telefone.",
+        description: "Por favor, preencha nome completo e um telefone válido.",
         variant: "destructive",
       });
       return;
@@ -134,6 +134,9 @@ export default function BookingForm() {
   };
 
   const formatDateDisplay = (dateStr: string) => {
+    // Handle empty date
+    if (!dateStr) return "";
+    
     // Parse date string as YYYY-MM-DD and create date in local timezone
     const [year, month, day] = dateStr.split('-').map(num => parseInt(num));
     const date = new Date(year, month - 1, day); // month is 0-indexed
@@ -143,6 +146,13 @@ export default function BookingForm() {
       month: "long",
       year: "numeric",
     });
+  };
+
+  const isValidPhoneNumber = (phone: string) => {
+    // Remove all non-digits
+    const digits = phone.replace(/\D/g, '');
+    // Check if we have exactly 10 or 11 digits (Brazilian phone format)
+    return digits.length === 11;
   };
 
   return (
@@ -202,7 +212,7 @@ export default function BookingForm() {
             </div>
 
             <div>
-              <Label htmlFor="clientPhone" className="text-gray-700 font-medium">WhatsApp</Label>
+              <Label htmlFor="clientPhone" className="text-gray-700 font-medium">Telefone</Label>
               <PhoneInput
                 value={formData.clientPhone}
                 onChange={(value) => setFormData({ ...formData, clientPhone: value })}
@@ -216,7 +226,12 @@ export default function BookingForm() {
 
           <Button
             onClick={() => nextStep(2)}
-            className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 h-12 text-base font-medium"
+            className={`w-full h-12 text-base font-medium ${
+              !formData.clientName.trim() || !formData.clientPhone || !isValidPhoneNumber(formData.clientPhone)
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600'
+            }`}
+            disabled={!formData.clientName.trim() || !formData.clientPhone || !isValidPhoneNumber(formData.clientPhone)}
             data-testid="button-continue-step1"
           >
             Continuar

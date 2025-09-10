@@ -10,22 +10,30 @@ export default function PhoneInput({ value, onChange }: PhoneInputProps) {
     // Remove all non-digits
     const digits = input.replace(/\D/g, '');
     
-    // Apply mask: (11) 99999-9999
-    if (digits.length <= 11) {
-      let formatted = digits;
-      
-      if (digits.length > 2) {
-        formatted = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    // Limit to 11 digits (Brazilian phone format)
+    const limitedDigits = digits.slice(0, 11);
+    
+    // Apply mask: (11) 99999-9999 or (11) 9999-9999
+    if (limitedDigits.length <= 11) {
+      // For 11 digits (with 9-digit cell phone): (11) 99999-9999
+      if (limitedDigits.length > 7) {
+        return `(${limitedDigits.slice(0, 2)}) ${limitedDigits.slice(2, 7)}-${limitedDigits.slice(7, 11)}`;
       }
-      
-      if (digits.length > 7) {
-        formatted = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+      // For 6-7 digits: (11) 9999-999
+      if (limitedDigits.length > 6) {
+        return `(${limitedDigits.slice(0, 2)}) ${limitedDigits.slice(2, 6)}-${limitedDigits.slice(6, 11)}`;
       }
-      
-      return formatted;
+      // For 3-6 digits: (11) 9999
+      if (limitedDigits.length > 2) {
+        return `(${limitedDigits.slice(0, 2)}) ${limitedDigits.slice(2)}`;
+      }
+      // For 1-2 digits: (11
+      if (limitedDigits.length > 0) {
+        return `(${limitedDigits}`;
+      }
     }
     
-    return value; // Return current value if too long
+    return '';
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

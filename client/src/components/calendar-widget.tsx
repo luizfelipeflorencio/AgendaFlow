@@ -126,6 +126,18 @@ export default function CalendarWidget({ selectedDate, onDateSelect }: CalendarW
     setCurrentMonth(newMonth);
   };
 
+  const handleDateClick = (date: Date) => {
+    const dateStr = formatDateForInput(date);
+    
+    // If clicking on already selected date, deselect it
+    if (isSelected(date)) {
+      onDateSelect('');
+    } else if (isDateAvailable(date) && isCurrentMonth(date)) {
+      // Otherwise, select the date if available
+      onDateSelect(dateStr);
+    }
+  };
+
   const days = getDaysInMonth(currentMonth);
 
   return (
@@ -195,7 +207,7 @@ export default function CalendarWidget({ selectedDate, onDateSelect }: CalendarW
           return (
             <button
               key={index}
-              onClick={() => isAvailable && isCurrent && onDateSelect(formatDateForInput(date))}
+              onClick={() => handleDateClick(date)}
               disabled={!isAvailable || !isCurrent}
               className={`
                 aspect-square p-1 sm:p-2 lg:p-3 rounded-full transition-all duration-200 text-xs sm:text-sm font-medium relative

@@ -52,6 +52,16 @@ export default function TimeSlots({ selectedDate, selectedTime, onTimeSelect }: 
     return false;
   };
 
+  const handleTimeSlotClick = (slotTime: string) => {
+    // If clicking on already selected time, deselect it
+    if (selectedTime === slotTime) {
+      onTimeSelect('');
+    } else if (!isTimeSlotPassed(slotTime)) {
+      // Otherwise, select the time if available
+      onTimeSelect(slotTime);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -123,7 +133,7 @@ export default function TimeSlots({ selectedDate, selectedTime, onTimeSelect }: 
               : 'border-pink-200 hover:border-pink-400 hover:bg-pink-50 text-gray-700 hover:scale-105'
           }
         `}
-        onClick={() => !isPassed && onTimeSelect(slot.slotTime)}
+        onClick={() => handleTimeSlotClick(slot.slotTime)}
         disabled={isPassed}
         data-testid={`time-slot-${slot.slotTime}`}
       >
